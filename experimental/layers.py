@@ -113,13 +113,16 @@ class Dense(TensorTrainLayer):
         next_core = __copy_cores.pop(index+1)
 
         print(index, self.cores_number-2)
+        print(current_core.shape)
+        print(next_core.shape)
         if index == 0:
-            __copy_cores[index] = np.einsum(current_core, [Ellipsis, 0], next_core, [Ellipsis, 0, 1])
+            __copy_cores[index] = np.einsum(current_core, [10, 11, 0], next_core, [20, 21, 0, 1], [10,20,11,21,1])
         elif index != self.cores_number-2:
-            __copy_cores[index] = np.einsum(current_core, [Ellipsis, 0, 1], next_core, [Ellipsis, 1, 2])
+            __copy_cores[index] = np.einsum(current_core, [10,11,0,1], next_core, [20,21,1,2], [10,20,11,21,0,2])
         else:
-            __copy_cores[index] = np.einsum(current_core, [Ellipsis, 0, 1], next_core, [Ellipsis, 1])
+            __copy_cores[index] = np.einsum(current_core, [10, 11, 0, 1], next_core, [20, 21, 1], [10, 20, 11, 21, 0])
 
+        print(__copy_cores[index].shape)
         self.__bond_core_index = index
         self.__bond_core = __copy_cores[self.__bond_core_index]
 
@@ -168,54 +171,123 @@ class Dense(TensorTrainLayer):
         self.__bond_core_update_step = False
 
     # Possible error in the tuples of axes for reshaping the tensor into a matrix for SVD
-    def __SVD_bond_core(self, chi=None):
-        inp, out, left, right = self.__bond_core.shape
-        newdim = [inp * left, out * right]
+    def __SVD_bond_core(self, chi=None, verbose=False):
+        if self.__bond_core_index != 0 and self.__bond_core_index != self.cores_number-2:
+            '''
+            Core shape decomposition with SVD:
 
-        print(self.__bond_core.shape) 
-        
-        # (in, out, left, right) -> ((in, left), (out, right))
-        
-        matrix_core_transposed = np.transpose(self.__bond_core, (0,2,1,3))
-        print(matrix_core_transposed.shape, newdim)
-        matrix_core = np.reshape(matrix_core_transposed, newdim, order='F')
-        u, s, v = np.linalg.svd(matrix_core, full_matrices=False)
+                       |   |                      |   |       
+                    ---O---O---     --->     ---[       ]--- 
+                       |   |                      |   |          
+ 
+                          |       |                  |         |                  |   |
+                 --->  ---O---o---O---    --->    ---O---  o---O---    --->    ---O---O---
+                          |       |                  |         |                  |   |
 
-        u_trimmed = u[:,:chi]
-        s_trimmed = s[:chi]
-        v_trimmed = v[:chi,:]
+            # (in1, in2, out1, out2, left, right) -> ((in1, out1, left), (in1, out2, right))
+            # (0,     1,    2,    3,    4,     5) -> ((  0,    2,    4), (  1,    3,     5))
+            '''
 
-        print("SVD shapes")
-        print(u.shape)
-        print(s.shape)
-        print(v.shape)
-        print("SVD trimmed shapes")
-        print(u_trimmed.shape)
-        print(s_trimmed.shape)
-        print(v_trimmed.shape)
+            inp1, inp2, out1, out2, left, right = self.__bond_core.shape
+            newdim = [inp1 * out1 * left, inp2 * out2 * right]
 
-        # current shape of u : ((in, left), chi) [ (a_j, (a_j-1, s_j)) = (a_j2, (a_j1, s_j1)) ]
-        # need to be converted to A : (s_j1, a_j1, a_j2)
-        # core_at_index_transposed = np.transpose(u_trimmed, (1,0))
-        core_at_index = np.reshape(u_trimmed, newshape=(left, inp, chi), order='F')
-        core_at_index = np.transpose(core_at_index, (1,0,2))
+            matrix_core_transposed = np.transpose(self.__bond_core, (0,2,4,1,3,5))
+            matrix_core = np.reshape(matrix_core_transposed, newdim, order='F')
+            u, s, v = np.linalg.svd(matrix_core, full_matrices=False)
 
-        # current shape of s*v : (chi, (out, right))
-        # need to be converted to A : (out, right, chi)
-        core_next_index_transposed = np.transpose(s_trimmed * v_trimmed.T, (1,0))
-        core_next_index = np.reshape(core_next_index_transposed, newshape=(out, right, chi), order='F')
+            u_trimmed = u[:,:chi]
+            s_trimmed = s[:chi]
+            v_trimmed = v[:chi,:]
 
-        print("New cores shapes")
-        print(core_at_index.shape)
-        print(core_next_index.shape)
+            core_at_index = np.reshape(u_trimmed, newshape=(inp1, out1, left, chi), order='F')
+
+            core_next_index_transposed = np.transpose(s_trimmed * v_trimmed.T, (1,0))
+            core_next_index = np.reshape(core_next_index_transposed, newshape=(inp2, out2, chi, right), order='F')
+        elif self.__bond_core_index == 0:
+            '''
+            Core shape decomposition with SVD:
+
+                    |   |             |   |          |       |         |         |         |   |
+                    O---O---  --->  [       ]  --->  O---o---O--- ---> O---  o---O--- ---> O---O---
+                    |   |             |   |          |       |         |         |         |   |
+
+            (in1, in2, out1, out2, right) -> ((in1, out1), (in1, out2, right))
+            (0,     1,    2,    3,     4) -> ((  0,    2), (  1,    3,     4))
+            '''
+            inp1, inp2, out1, out2, right = self.__bond_core.shape
+            newdim = [inp1 * out1, inp2 * out2 * right]
+
+            matrix_core_transposed = np.transpose(self.__bond_core, (0,2,1,3,4))
+            matrix_core = np.reshape(matrix_core_transposed, newdim, order='F')
+            u, s, v = np.linalg.svd(matrix_core, full_matrices=False)
+
+            u_trimmed = u[:,:chi]
+            s_trimmed = s[:chi]
+            v_trimmed = v[:chi,:]
+
+            core_at_index = np.reshape(u_trimmed, newshape=(inp1, out1, chi), order='F')
+
+            core_next_index_transposed = np.transpose(s_trimmed * v_trimmed.T, (1,0))
+            core_next_index = np.reshape(core_next_index_transposed, newshape=(inp2, out2, chi, right), order='F')
+        elif self.__bond_core_index == self.cores_number-2:
+            '''
+            Core shape decomposition with SVD:
+
+                       |   |              |   |             |       |         |         |           |   |
+                    ---O---O  --->   ---[       ]  --->  ---O---o---O ---> ---O---  o---O      ---> O---O---
+                       |   |              |   |             |       |         |         |           |   |
+
+            (in1, in2, out1, out2, left) -> ((in1, out1, left), (in1, out2))
+            (0,     1,    2,    3,     4) -> ((  0,    2,   4), (  1,    3))
+            '''
+            inp1, inp2, out1, out2, left = self.__bond_core.shape
+            newdim = [inp1 * out1 * left, inp2 * out2]
+
+            matrix_core_transposed = np.transpose(self.__bond_core, (0,2,4,1,3))
+            matrix_core = np.reshape(matrix_core_transposed, newdim, order='F')
+            u, s, v = np.linalg.svd(matrix_core, full_matrices=False)
+
+            u_trimmed = u[:,:chi]
+            s_trimmed = s[:chi]
+            v_trimmed = v[:chi,:]
+            
+            core_at_index = np.reshape(u_trimmed, newshape=(inp1, out1, left, chi), order='F')
+
+            core_next_index_transposed = np.transpose(s_trimmed * v_trimmed.T, (1,0))
+            core_next_index = np.reshape(core_next_index_transposed, newshape=(inp2, out2, chi), order='F')
+
+        else:
+            raise Exception("Index out of bound")
+
+
+
+        if verbose:
+
+            print("Core shape", self.__bond_core.shape)
+            print("Matrix unfolding shape : ", newdim)
+
+            print(matrix_core_transposed.shape, newdim)
+
+            print("SVD shapes")
+            print(u.shape)
+            print(s.shape)
+            print(v.shape)
+            print("SVD trimmed shapes")
+            print(u_trimmed.shape)
+            print(s_trimmed.shape)
+            print(v_trimmed.shape)
+
+            print("Splitted core shape :", core_at_index.shape)
+            print(core_at_index.shape)
+            print(core_next_index.shape)
 
     def __update_bond_core(self, index, grad_loss):
         self.__bond_core_update_step = True
         self.__contract_bond_core(index)
 
         # For testing purposes for now
-        print(f"Bon dimension at index {index} is {self.__bond_core.shape[2]}")
-        self.__SVD_bond_core(chi=self.__bond_core.shape[2])
+        print(f"Bon dimension at index {index} is {self.__bond_core.shape[4]}")
+        self.__SVD_bond_core(chi=self.__bond_core.shape[4], verbose=True)
 
         return self.__bond_core - self.learning_rate * grad_loss
 
