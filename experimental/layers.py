@@ -156,13 +156,13 @@ class Dense(TensorTrainLayer):
         input_index = list(np.arange(self.cores_number))
 
         einsum_structure = []
-        # einsum_structure.append(input)
+        einsum_structure.append(input)
         einsum_structure.append(input_index)
 
         for idx in range(self.cores_number):
             if idx != self.__bond_core_index and idx != self.__bond_core_index+1:
-                # einsum_structure.append(self.cores[idx])
-                print('idx', idx)
+                einsum_structure.append(self.cores[idx])
+
                 ipt_index = idx
                 if idx == 0:
                     opt_index = self.cores_number+idx
@@ -178,12 +178,20 @@ class Dense(TensorTrainLayer):
                     right_index = 2*self.cores_number+idx
                     einsum_structure.append([ipt_index, opt_index, left_index, right_index])
         
-        # output_index = list(np.arange(2*self.cores_number,3*self.cores_number))
-        # einsum_structure.append(output_index)
+        output_start = list(np.arange(self.cores_number,self.cores_number+self.__bond_core_index))
+        output_end = list(np.arange(self.cores_number+self.__bond_core_index+2, 2*self.cores_number))
+        bond_start = list(np.arange(2*self.cores_number, 2*self.cores_number+self.__bond_core_index))
+        bond_end = list(np.arange(2*self.cores_number+self.__bond_core_index+1, 3*self.cores_number-1))
+        
+        output_index = output_start + output_end + bond_start + bond_end
 
-        print(einsum_structure)
+        print('Output shape', output_index)
+        einsum_structure.append(output_index)
 
-        # projected_tensor = np.einsum(*einsum_structure)
+        # print(einsum_structure)
+
+        projected_tensor = np.einsum(*einsum_structure)
+        return projected_tensor
 
     def __project_wings_MPS(self, input, contracted_index):
         if not self.__bond_core_update_step:
@@ -344,11 +352,14 @@ class Dense(TensorTrainLayer):
         self.__bond_core_update_step = True
         self.__contract_bond_core(index)
 
-        self.__project_wings_MPO(tensor, index)
+        wings = self.__project_wings_MPO(tensor, index)
 
         # For testing purposes for now
         print(f"Bon dimension at index {index} is {self.__bond_core.shape[4]}")
         self.__SVD_bond_core(chi=self.__bond_core.shape[4], verbose=True)
+
+
+        self.__crumble(wings)
 
         return self.__bond_core - self.learning_rate * grad_loss
 
