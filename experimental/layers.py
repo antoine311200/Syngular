@@ -126,7 +126,66 @@ class Dense(TensorTrainLayer):
         self.__bond_core_index = index
         self.__bond_core = __copy_cores[self.__bond_core_index]
 
-    def __project_wings(self, input, contracted_index):
+    def __project_wings_MPO(self, input, contracted_index):
+        if not self.__bond_core_update_step:
+            raise Exception("an updating step of the cores has not been started yet")
+
+        input = np.array(input)
+        unfold_input = unfold_shape(input.shape)
+
+        if self.unfold_input_shape != unfold_input:
+            exception = f"input of shape {input.shape} cannot be reshaped into {self.input_shape} [{unfold_input} != {self.unfold_input_shape}]"
+            raise Exception(exception)
+        
+        '''
+                |   |   |   |                    |           |   |           |    
+             ---O---O---O---O---     --->     ---O---   ---[       ]---   ---O---
+                |   |   |   |                    |           |   |           |        
+                O   O   O   O                    O           O   O           O
+
+
+               |             |
+            ---O--- ==>   ---O---
+               |
+               O           
+
+
+                    |           |   |           |    
+            ==>  ---O---   ---[       ]---   ---O---
+        '''
+        input_index = list(np.arange(self.cores_number))
+
+        einsum_structure = []
+        # einsum_structure.append(input)
+        einsum_structure.append(input_index)
+
+        for idx in range(self.cores_number):
+            if idx != self.__bond_core_index and idx != self.__bond_core_index+1:
+                # einsum_structure.append(self.cores[idx])
+                print('idx', idx)
+                ipt_index = idx
+                if idx == 0:
+                    opt_index = self.cores_number+idx
+                    right_index = 2*self.cores_number+idx
+                    einsum_structure.append([ipt_index, opt_index, right_index])
+                elif idx == self.cores_number-1:
+                    opt_index = self.cores_number+idx
+                    left_index = 2*self.cores_number+idx-1
+                    einsum_structure.append([ipt_index, opt_index, left_index])
+                else:
+                    opt_index = self.cores_number+idx
+                    left_index = 2*self.cores_number+idx-1
+                    right_index = 2*self.cores_number+idx
+                    einsum_structure.append([ipt_index, opt_index, left_index, right_index])
+        
+        # output_index = list(np.arange(2*self.cores_number,3*self.cores_number))
+        # einsum_structure.append(output_index)
+
+        print(einsum_structure)
+
+        # projected_tensor = np.einsum(*einsum_structure)
+
+    def __project_wings_MPS(self, input, contracted_index):
         if not self.__bond_core_update_step:
             raise Exception("an updating step of the cores has not been started yet")
         
@@ -281,9 +340,11 @@ class Dense(TensorTrainLayer):
             print(core_at_index.shape)
             print(core_next_index.shape)
 
-    def __update_bond_core(self, index, grad_loss):
+    def __update_bond_core(self, input, index, grad_loss):
         self.__bond_core_update_step = True
         self.__contract_bond_core(index)
+
+        self.__project_wings_MPO(tensor, index)
 
         # For testing purposes for now
         print(f"Bon dimension at index {index} is {self.__bond_core.shape[4]}")
@@ -371,7 +432,7 @@ class Dense(TensorTrainLayer):
 
 
     def backward(self, input, grad_output):
-        self.__update_bond_core(1, 0)
+        self.__update_bond_core(input, 2, 0)
 
     def train(self):
         pass
@@ -379,7 +440,7 @@ class Dense(TensorTrainLayer):
 
 if __name__ == "__main__":
 
-    layer = Dense((2,2,2,2), (3,3,3,3), bond_dim=4)
+    layer = Dense((2,2,2,2,2,2), (3,3,3,3,3,3), bond_dim=4)
     layer.build()
 
     print("Cores")
@@ -387,7 +448,7 @@ if __name__ == "__main__":
     print("Bias")
     print(layer.bias)
 
-    tensor = np.arange((2**4)).reshape(((2,2,2,2)))
+    tensor = np.arange((2**6)).reshape(((2,2,2,2,2,2)))
     layer.forward(tensor)
 
     print('--------- Backpropagation ----------')
