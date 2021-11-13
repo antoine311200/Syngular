@@ -359,14 +359,16 @@ class Dense(TensorTrainLayer):
         self.__SVD_bond_core(chi=self.__bond_core.shape[4], verbose=True)
 
 
-        self.__crumble(wings)
+        # self.__crumble(wings)
 
         return self.__bond_core - self.learning_rate * grad_loss
 
     def __crumble(self, projected_wings):
         rank = len(projected_wings.shape)
 
-        if rank != 4 and (self.__bond_core_index != 0 or self.__bond_core_index != self.cores_number-2):
+        print("Rank ", rank, projected_wings.shape)
+
+        if rank != 8 and (self.__bond_core_index != 0 or self.__bond_core_index != self.cores_number-2):
             raise Exception('error while computing the projected input through the wings of the tensor train for a middle bond core')
         elif rank != 3 and (self.__bond_core_index == 0 or self.__bond_core_index == self.cores_number-2):
             raise Exception('error while computing the projected input through the wings of the tensor train for an extreme bond core')
@@ -460,7 +462,7 @@ if __name__ == "__main__":
     print(layer.bias)
 
     tensor = np.arange((2**6)).reshape(((2,2,2,2,2,2)))
-    layer.forward(tensor)
+    # layer.forward(tensor)
 
     print('--------- Backpropagation ----------')
 
