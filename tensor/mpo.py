@@ -191,17 +191,30 @@ class MatrixProductOperator:
  
 if __name__ == "__main__":
 
-    # tensor = np.arange(((2**6)*(3**6))).reshape(((2,2,2,2,2,2,3,3,3,3,3,3)))
-
-    # tt = MatrixProductOperator(tensor, (2,2,2,2,2,2), (3,3,3,3,3,3), (4,4,4,4,4))
-    # tt.decompose()
-
-    # print(tt.retrieve((0,0,0,0,0,0),(0,0,0,0,0,0)))
-
-    tensor = np.arange(4*4).reshape((2,2,2,2))
-    tt = MatrixProductOperator(tensor, (2,2), (2,2), (2,))
+    tensor = np.arange(((2**6)*(3**6))).reshape(((2,2,2,2,2,2,3,3,3,3,3,3)))
+    print(tensor[0,0,0,0,0,0,0,0,0,0,0,0])
+    tt = MatrixProductOperator(tensor, (2,2,2,2,2,2), (3,3,3,3,3,3), (4,4,4,4,4))
     tt.decompose()
-    print(tt.cores)
 
-    print(tensor)
-    print(tt.retrieve((0,0),(0,0)))
+    print(tt.retrieve((0,0,0,0,0,0),(0,0,0,0,0,0)))
+
+    # tensor = np.arange(4*4).reshape((2,2,2,2))
+    # tt = MatrixProductOperator(tensor, (2,2), (2,2), (2,))
+    # tt.decompose()
+    # print(tt.cores)
+
+    # print(tensor)
+    # print(tt.retrieve((0,0),(0,0)))
+
+    # chi = 2
+    # ts = np.arange(3*chi*3*chi).reshape((3, 3, chi, chi))
+    # tw = np.zeros((3*chi, 3*chi), dtype=complex)
+    # print(ts)
+    # print(ts[2,2,1,1])
+    # for i in range(3):
+    #     for j in range(3):
+    #         for k in range(chi):
+    #             for l in range(chi):
+    #                 tw[i*chi + k][j*chi + l] = ts[i][j][k][l]
+    # print(tw)
+    # print(np.reshape(np.transpose(ts, axes=(0,2,1,3)),newshape=(3*chi, 3*chi), order='F'))
