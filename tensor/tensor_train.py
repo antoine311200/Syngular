@@ -3,114 +3,168 @@ import itertools
 from typing import Tuple, List, Union
 
 import numpy as np
+from numpy.lib.arraysetops import isin
 from scipy import linalg
 
 import matplotlib.pyplot as plt
 
 class MatrixProductState:
 
-    def __init__(self, tensor, bond_shape) -> None:
-        self.tensor = tensor
-        self.tensor_shape = tensor.shape
-        self.bond_shape = bond_shape
-
-        self.sites_number = len(self.bond_shape)+1
-        self.sites = [None] * self.sites_number
-
-        # print(self.bond_shape, self.sites_number)
-        
-        self.shape = [(1, self.tensor_shape[0],self.bond_shape[0])]
-        self.shape += [(self.bond_shape[i-1], self.tensor_shape[i], self.bond_shape[i]) for i in range(1, self.sites_number-1)]
-        self.shape += [(self.bond_shape[self.sites_number-2], self.tensor_shape[self.sites_number-1], 1)]
+    """__init__ method of MatrixProductState
+    Setting up the main property of the instance of MPS such as its number of cores/sites
 
 
-        self.shape = [(self.tensor_shape[i], self.bond_shape[i]) for i in range(self.sites_number-1)]
+    @type tensor: np.ndarray
+    @param tensor: A tensor to represent as a tensor-train / MPS
+        (default is None)
+    @type bond_shapes: Union[Union[Tuple, List], np.ndarray]
+    @param bond_shapes: Bond indices shape for the MPS
+        (default is ())
+    @type verbose: int
+    @param verbose: Verbose value (0 or 1)
+        (default is 0)
+    """
+    def __init__(self, tensor=None, bond_shape: Union[Union[Tuple, List], np.ndarray]=(), verbose=0) -> None:
+        if tensor is not None:
+            self.tensor = tensor
+            self.tensor_shape = tensor.shape
+            self.bond_shape = bond_shape
 
-    def decompose(self, mode="left"):
+            self.sites_number = len(self.bond_shape)+1
+            self.sites = [None] * self.sites_number
+            
+            self.shape = [(1, self.tensor_shape[0],self.bond_shape[0])]
+            self.shape += [(self.bond_shape[i-1], self.tensor_shape[i], self.bond_shape[i]) for i in range(1, self.sites_number-1)]
+            self.shape += [(self.bond_shape[self.sites_number-2], self.tensor_shape[self.sites_number-1], 1)]
+            
+        self.verbose = verbose
+        self.decomposed = False
 
-        if mode == "left":
-            current_matrix = self.tensor
-            current_shape = self.shape[0][0]
-            current_rank = 1
+    
+    def __getitem__(self, key):
 
-            # print(self.shape)
-            for k in range(self.sites_number-1):
-                current_shape = self.shape[k][0]
-                
-                unfolding_matrix = np.reshape(current_matrix, newshape=(current_shape*current_rank, -1))
-                rank = self.shape[k][1]
-                
-                Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
+        if len(key) != self.sites_number:
+            raise Exception("input indices do not match the number of sites")
 
-                Q = Q[:,:rank]
-                Q = np.reshape(Q, newshape=(current_rank, current_shape, -1))
-                R = R[:rank, :]
-
-                print(f"Core {k} with {current_rank} , {current_shape}")
-
-                self.sites[k] = Q
-
-                current_rank = rank
-                current_matrix = R
-
-            current_matrix = current_matrix[:, :, np.newaxis]
-            self.sites[-1] = current_matrix
-
-            # print([y.shape for y in self.sites])
-
-        elif mode == "right":
-            current_matrix = self.tensor.T
-            current_shape = self.shape[0][0]
-            current_rank = 1
-
-            self.decompose(mode="left")
-
-        # print("sites", self.shape)
-        return self
-
-    def retrieve(self, indices):
-        einsum_structure = []
-        for idx in range(self.sites_number):
-            # print(indices[idx], self.sites[idx].shape)
-            einsum_structure.append(self.sites[idx][:, indices[idx], :])
-            einsum_structure.append([idx, Ellipsis, idx+1])
-
-        return np.einsum(*einsum_structure)
-
-    def update(self, sites, value):
-
-        print(self.sites[sites[0]].shape)
-        print(self.sites[sites[1]].shape)
-
-        merge_site = np.einsum(self.sites[sites[0]], [1,2,3], self.sites[sites[1]], [3,4,5], [1,2,4,5])
-
-        merge_site = np.einsum(merge_site, [1,2,3,4], value, [5,2,3,6], [1,5,6,4])
-
-        print("shape")
-        print(merge_site.shape)
-
-        rank_left, rank_1, rank_2, rank_right = merge_site.shape
-
-        unfolding_matrix = np.reshape(merge_site, newshape=(rank_left*rank_1, -1))
-
-        Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
-
-        Q = Q[:,:rank_left]
-        Q = np.reshape(Q, newshape=(rank_left, rank_1, -1))
-        R = R[:rank_left, :]
-        R = np.reshape(R, newshape=(-1, rank_2, rank_right))
-
-        # print(Q.shape, R.shape)
-
-        self.sites[sites[0]] = Q
-        self.sites[sites[1]] = R
-
+        return self.retrieve(key)
     
     def __repr__(self) -> str:
         repr = "<Matrix Product State> \n> Sites shape" + str(self.shape) + "\n"
         repr += "\t"+"|   " * self.sites_number + "\n"
         repr += "\t"+("O---" * (self.sites_number-1)) + "O" + "\n"
         return repr
+
+
+    @staticmethod
+    def from_sites(sites):
+        mp = MatrixProductState()
+        mp.sites = sites
+        mp.sites_number = len(sites)
+
+        mp.decomposed = True
+
+        mp.input_shape, mp.bond_shape = (), ()
+        mp.shape = [None] * mp.sites_number
+
+        for idx in range(mp.sites_number):
+            site = sites[idx]
+            shape = site.shape
+            mp.shape[idx] = shape
+            mp.input_shape  += (shape[1],)
+            if idx != mp.sites_number-1: mp.bond_shape   += (shape[2],)
+
+        return mp
+
+    
+    def to_tensor(self):
+        tensor = np.zeros(shape=self.input_shape)
+
+        range_inp = [range(inp) for inp in self.input_shape]
+        
+        for inp in itertools.product(*range_inp):
+                tensor[inp] = self[inp]
+        
+        return tensor
+
+    def decompose(self, mode="left"):
+        if not self.decomposed:
+            if mode == "left":
+                current_matrix = self.tensor
+                current_shape = self.shape[0][1]
+                current_rank = 1
+
+                for k in range(self.sites_number-1):
+                    
+                    unfolding_matrix = np.reshape(current_matrix, newshape=(current_shape*current_rank, -1))
+                    rank = self.shape[k][2]
+                    
+                    Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
+
+                    Q = Q[:,:rank]
+                    Q = np.reshape(Q, newshape=(current_rank, current_shape, -1))
+                    R = R[:rank, :]
+
+                    print(f"Core {k} with {current_rank} , {current_shape}")
+
+                    self.sites[k] = Q
+
+                    current_shape = self.shape[k+1][1]
+                    current_rank = rank
+                    current_matrix = R
+
+                current_matrix = current_matrix[:, :, np.newaxis]
+                self.sites[-1] = current_matrix
+                
+                del self.tensor
+                gc.collect()
+
+            elif mode == "right":
+                current_matrix = self.tensor.T
+                current_shape = self.shape[0][0]
+                current_rank = 1
+
+                self.decompose(mode="left")
+
+            self.decomposed = True
+        return self
+
+    
+
+    def retrieve(self, indices):
+        einsum_structure = []
+        for idx in range(self.sites_number):
+            einsum_structure.append(self.sites[idx][:, indices[idx], :])
+            einsum_structure.append([idx, Ellipsis, idx+1])
+
+        return np.einsum(*einsum_structure)
+
+    # def update(self, sites, value):
+
+    #     print(self.sites[sites[0]].shape)
+    #     print(self.sites[sites[1]].shape)
+
+    #     merge_site = np.einsum(self.sites[sites[0]], [1,2,3], self.sites[sites[1]], [3,4,5], [1,2,4,5])
+
+    #     merge_site = np.einsum(merge_site, [1,2,3,4], value, [5,2,3,6], [1,5,6,4])
+
+    #     print("shape")
+    #     print(merge_site.shape)
+
+    #     rank_left, rank_1, rank_2, rank_right = merge_site.shape
+
+    #     unfolding_matrix = np.reshape(merge_site, newshape=(rank_left*rank_1, -1))
+
+    #     Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
+
+    #     Q = Q[:,:rank_left]
+    #     Q = np.reshape(Q, newshape=(rank_left, rank_1, -1))
+    #     R = R[:rank_left, :]
+    #     R = np.reshape(R, newshape=(-1, rank_2, rank_right))
+
+    #     # print(Q.shape, R.shape)
+
+    #     self.sites[sites[0]] = Q
+    #     self.sites[sites[1]] = R
 
 
 
@@ -139,8 +193,9 @@ class MatrixProductState:
 
 class MatrixProductOperator:
 
-    def __init__(self, tensor=(), bond_shape: Union[Union[Tuple, List], np.ndarray]=(), verbose=0) -> None:
-        if tensor != ():
+    def __init__(self, tensor=None, bond_shape: Union[Union[Tuple, List], np.ndarray]=(), verbose=0) -> None:
+        
+        if tensor is not None:
             self.tensor = tensor
             self.tensor_shape = tensor.shape
             self.bond_shape = tuple(bond_shape)
@@ -203,6 +258,94 @@ class MatrixProductOperator:
             return MatrixProductOperator.from_sites(sites)
         else:
             raise Exception("Both Matrix Product Operator must be in canonical form (use .decompose()")
+
+    def __mul__(self, mp):
+        print(mp)
+        if not self.decomposed and mp.decomposed:
+            raise Exception("Both Matrix Product Operator must be in canonical form (use .decompose()")
+
+        sites = []
+
+        if isinstance(mp, MatrixProductOperator):
+            for idx in range(self.sites_number):
+                wing_left = idx == 0
+                wing_right = idx == self.sites_number-1
+
+                site = np.zeros(shape=(
+                    self.shape[idx][0] * mp.shape[idx][0],
+                    self.shape[idx][1],
+                    self.shape[idx][2],
+                    self.shape[idx][3] * mp.shape[idx][3]
+                ))
+
+                for inp in range(self.shape[idx][1]):
+                    for out in range(self.shape[idx][2]):
+                        left_matrix = self.sites[idx][:, inp, out, :]
+                        right_matrix = mp.sites[idx][:, inp, out, :]
+                        
+                        site[:, inp, out, :] = np.kron(left_matrix, right_matrix)
+            
+                sites.append(site)
+            
+            return MatrixProductOperator.from_sites(sites)
+
+        elif isinstance(mp, MatrixProductState):
+            pass
+        else:
+            raise Exception("left hand-side must be either a MatrixProductState or a MatrixProductOperator")
+
+    def __matmul__(self, mp):
+        sites = []
+
+        if isinstance(mp, MatrixProductState):
+            for idx in range(self.sites_number):
+                site = np.einsum(mp.sites[idx], [1,2,3], self.sites[idx], [4,2,6,5], [1,4,6,3,5])
+
+                site = site.reshape((
+                    self.shape[idx][0]*mp.shape[idx][0],
+                    self.shape[idx][2],
+                    self.shape[idx][3]*mp.shape[idx][2]
+                ))
+                sites.append(site)
+            return MatrixProductState.from_sites(sites)
+        elif isinstance(mp, MatrixProductOperator):
+            for idx in range(self.sites_number):
+                site = np.einsum(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,3,6,7], [1,5,2,6,4,7])
+
+                site = site.reshape((
+                    self.shape[idx][0]*mp.shape[idx][0],
+                    self.shape[idx][1],
+                    self.shape[idx][2],
+                    self.shape[idx][3]*mp.shape[idx][3]
+                ))
+                sites.append(site)
+            return MatrixProductOperator.from_sites(sites)
+
+    def __mod__(self, mode):
+        if mode == 'L' or mode == 'left' or mode == 'l' or mode == 'left-canonical':
+            for idx in range(self.sites_number-1):
+                site = self.sites[idx]
+
+                # unfolding_site = np.reshape(site, newshape=())
+                # unfolding_matrix = np.reshape(current_matrix, newshape=(current_input_shape*current_output_shape*current_rank, -1))
+                # rank_right = self.shape[k][3]
+
+                # Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
+
+                # Q = Q[:,:rank_right]
+                # Q = np.reshape(Q, newshape=(current_rank, current_input_shape, current_output_shape, rank_right))
+                # R = R[:rank_right, :]
+
+                # self.sites[k] = Q
+
+                # current_input_shape = self.shape[k][1]
+                # current_output_shape = self.shape[k][2]
+                # current_rank = rank_right
+                # current_matrix = R
+        elif mode == 'R' or mode == 'right' or mode == 'r' or mode == 'right-canonical':
+            pass
+        else:
+            raise Exception("when calling mod (%) mode should be left-canonical or right-canonical alias")
 
     def __rshift__(self, dim):
         if isinstance(dim, int):
@@ -300,6 +443,9 @@ class MatrixProductOperator:
                 current_matrix = np.reshape(current_matrix, newshape=(-1, current_input_shape, current_output_shape))[:, :, :, np.newaxis]
                 if self.verbose == 1: print(current_matrix.shape)
                 self.sites[-1] = current_matrix
+
+                del self.tensor
+                gc.collect()
             
             elif mode == "right":
                 if self.verbose == 1: print(self.sites_number)
@@ -312,9 +458,6 @@ class MatrixProductOperator:
                 self.sites = self.sites[::-1]
             
             self.decomposed = True
-
-            del self.tensor
-            gc.collect()
 
         return self
 

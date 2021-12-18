@@ -1,5 +1,4 @@
-from numpy.linalg.linalg import matrix_rank
-from syngular.tensor.tensor_train import MatrixProductOperator, MatrixProductState
+from syngular.tensor import MatrixProductOperator, MatrixProductState
 
 import numpy as np
 from opt_einsum import contract
@@ -73,7 +72,7 @@ class Layer:
             weight = np.zeros(shape=(*self._input_shape, *self._output_shape))
 
         matrix_product_weight = MatrixProductOperator(weight, bond_shape=bond)
-        matrix_product_weight.decompose(mode='left')
+        matrix_product_weight.decompose()
 
         self.trainable_tensor_weights.append({'name': name, 'weight': matrix_product_weight})
     
@@ -107,6 +106,7 @@ class Linear(Layer):
         self.core = core
         self.bond_dimension = bond
 
+
         self.input_core_dim = round(self.input_units**(1/self.core))
         self.output_core_dim = round(self.output_units**(1/self.core))
 
@@ -122,7 +122,7 @@ class Linear(Layer):
     def build(self, input_shape):
         # self.add_bias(self._output_shape, name="bias", initializer="normal")
         # print(self._input_shape, self._output_shape)
-        self.add_weight(self._input_shape, self._output_shape, bond=self._bond_shape, name="bias", initializer="normal")
+        self.add_weight(self._input_shape, self._output_shape, bond=self._bond_shape, name="weight", initializer="normal")
 
     def __call__(self, inputs):
         super(Linear, self).__call__(inputs)
