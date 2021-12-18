@@ -84,3 +84,12 @@ class TensorRNNCell(Layer):
         result = tf.vectorized_map(lambda vec: process(vec, self.bias), inputs)
         return self.activation(tf.reshape(result, (-1, self.tt_output_shape_unfold)))
 
+
+if __name__ == "__main__":
+    
+    from keras.layers import SimpleRNN
+    from keras import Sequential
+
+    model = Sequential([
+        SimpleRNN()
+    ])

@@ -9,6 +9,8 @@ from math import floor, ceil, sqrt
 import tensornetwork as tn
 import numpy as np
 
+from opt_einsum import contract
+
 def unfold_dim(shape):
     return reduce(lambda x, y: x*y, shape)
 
@@ -40,9 +42,9 @@ class TensorDense(Layer):
 
             self.tt_input_shape = tuple([roots] * self.cores_number)
 
-            print("reshaped", tt_input_shape)
+            #print("reshaped", tt_input_shape)
 
-        print("Input shape", self.tt_input_shape)
+        #print("Input shape", self.tt_input_shape)
 
         self.bias = tf.Variable(tf.zeros(shape=self.tt_output_shape), name="bias", trainable=True)
         
@@ -76,31 +78,49 @@ class TensorDense(Layer):
     def call(self, inputs):
 
         def process(input, bias):
-            input_reshaped = tf.reshape(input,self.tt_input_shape)
+            # input_reshaped = tf.reshape(input,self.tt_input_shape)
     
-            last_idx = self.cores_number-1
-            einsum_structure = []
+            # last_idx = self.cores_number-1
+            # einsum_structure = []
 
-            cores = [tn.Node(core, backend="tensorflow").tensor for core in self.cores]
-            x = tn.Node(input_reshaped, backend="tensorflow")
+            # cores = [tn.Node(core, backend="tensorflow").tensor for core in self.cores]
+            # x = tn.Node(input_reshaped, backend="tensorflow")
 
 
-            einsum_structure = []
-            einsum_structure.append(list(range(1, self.cores_number+1)))
-            einsum_structure.append([1, -(self.cores_number+1), 2*self.cores_number+1])
+            # einsum_structure = []
+            # einsum_structure.append(list(range(1, self.cores_number+1)))
+            # einsum_structure.append([1, -(self.cores_number+1), 2*self.cores_number+1])
 
-            for idx in range(1, last_idx):
-                einsum_structure.append([idx+1, -(self.cores_number+idx+1), 2*self.cores_number+idx+1])
+            # for idx in range(1, last_idx):
+            #     einsum_structure.append([idx+1, -(self.cores_number+idx+1), 2*self.cores_number+idx+1])
             
-            einsum_structure.append([last_idx+1, -(self.cores_number+last_idx+1), 2*self.cores_number+last_idx-1+1])
+            # einsum_structure.append([last_idx+1, -(self.cores_number+last_idx+1), 2*self.cores_number+last_idx-1+1])
             
-            print(einsum_structure)
+            # #print(einsum_structure)
 
-            result = tn.ncon(
-                tensors = [x.tensor] + cores,
-                network_structure = einsum_structure,
-                backend = "tensorflow"
-            )
+            # result = tn.ncon(
+            #     tensors = [x.tensor] + cores,
+            #     network_structure = einsum_structure,
+            #     backend = "tensorflow"
+            # )
+
+            x = tf.reshape(input,self.tt_input_shape)#tf.reshape(input, ((self.tt_input_shape[0],)*self.cores_number))
+
+            
+            struct = []
+            struct += [x, list(range(1, self.cores_number+1))]
+            struct += [self.cores[0], [1, self.cores_number+1, 2*self.cores_number+1]]
+            
+            for idx in range(2, self.cores_number):
+                struct += [self.cores[idx-1]]
+                struct += [[idx, self.cores_number+idx, 2*self.cores_number+1, 2*self.cores_number+2]]
+
+            struct += [self.cores[-1], [self.cores_number, 2*self.cores_number, 3*self.cores_number-1]]
+            struct += [list(range(self.cores_number+1, 2*self.cores_number+1))]
+
+
+            result = contract(*struct)
+
             # print(type(self.cores[0].numpy()))
 
             # cores = list(map(lambda core: tf.convert_to_tensor(core), self.cores))
