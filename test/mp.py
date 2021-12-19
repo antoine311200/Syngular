@@ -4,17 +4,22 @@ from syngular.tensor import MatrixProductOperator
 import numpy as np
 import time
 
-
+np.set_printoptions(suppress=True)
 
 
 
 def test_decompose():
     w = np.arange(2**4).reshape((2,2,2,2))
     W = MatrixProductOperator(w, bond_shape=(4,))
+
+    
+    z = np.arange(4**3*3**3).reshape((4,4,4,3,3,3))
+    Z = MatrixProductOperator(z, bond_shape=(3,3,))
     
     print("---------- MatrixProductOperator.decompose() ----------")
     start = time.time()
     W.decompose()
+    Z.decompose()
     end = time.time()
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
@@ -22,26 +27,46 @@ def test_decompose():
     print(w[1,1,1,1])
     print(W[(1,1),(1,1)])
 
+    print(z[3,1,0,1,2,1])
+    print(Z[(3,1,0),(1,2,1)])
+
 def test_orthogonality():
-    w = np.arange(2**4).reshape((2,2,2,2))
-    W = MatrixProductOperator(w, bond_shape=(4,)).decompose()
+    # w = np.arange(16**6).reshape((16,16,16,16,16,16))
+    # W = MatrixProductOperator(w, bond_shape=(8,8,)).decompose()
     
+    w = np.arange(2**6).reshape((2,2,2,2,2,2))
+    W = MatrixProductOperator(w, bond_shape=(2,2,)).decompose()
+    
+    print(w[1,0,0,1,0,0])
+    print(W[(1,0,0),(1,0,0)])
+
     W.left_orthonormalization()
+    print(W)
+    print(w[1,0,0,1,0,0])
+    print(W[(1,0,0),(1,0,0)])
+    print("Parameters", W.parameters_number, "v.s True Parameters", W.real_parameters_number)
     print("---------- MatrixProductOperator.left_orthogonality() ----------")
     start = time.time()
-    print(W.left_orthogonality(0))
+    print(np.diag(W.left_orthogonality(0)))
+    print(np.diag(W.left_orthogonality(1)))
+    print(np.diag(W.left_orthogonality(2)))
     end = time.time()
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
     
     W.right_orthonormalization()
     print()
-    print("---------- MatrixProductOperator.left_orthogonality() ----------")
+    print("---------- MatrixProductOperator.right_orthogonality() ----------")
     start = time.time()
-    print(W.right_orthogonality(1))
+    print(np.diag(W.right_orthogonality(0)))
+    print(np.diag(W.right_orthogonality(1)))
+    print(np.diag(W.right_orthogonality(2)))
     end = time.time()
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
+
+    print(w[1,0,0,1,0,0])
+    print(W[(1,0,0),(1,0,0)])
 
 def test_compress():
     w = np.arange(2**4).reshape((2,2,2,2))
@@ -196,7 +221,7 @@ def test_to_tensor():
 
 
 
-test_decompose()
+# test_decompose()
 # test_from_sites()
 # test_random()
 # test_to_tensor()
@@ -205,4 +230,4 @@ test_decompose()
 # test_matmul()
 # test_dot()
 # test_compress()
-# test_orthogonality()
+test_orthogonality()

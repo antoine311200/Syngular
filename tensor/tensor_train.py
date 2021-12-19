@@ -3,7 +3,6 @@ import itertools
 from typing import Tuple, List, Union
 
 import numpy as np
-from numpy.lib.arraysetops import isin
 from scipy import linalg
 
 import matplotlib.pyplot as plt
@@ -216,6 +215,9 @@ class MatrixProductOperator:
         self.decomposed = False
         self.orthonormalized = None
 
+        self.parameters_number = 0
+        self.real_parameters_number = np.prod(self.tensor_shape)
+
     def __add__(self, mpo):
         print(mpo)
         if self.decomposed and mpo.decomposed:
@@ -406,32 +408,26 @@ class MatrixProductOperator:
     def decompose(self, mode="left"):
         if not self.decomposed:
             if mode == "left":
-                current_matrix = self.tensor
-                current_input_shape = self.shape[0][1]
-                current_output_shape = self.shape[0][2]
-                current_rank = 1
 
-                for k in range(self.sites_number-1):
+                n = self.sites_number-1
+                T = self.tensor
+
+                for k in range(n):
+                    L = self.left_matricization(T, index=k)
                     
-                    unfolding_matrix = np.reshape(current_matrix, newshape=(current_input_shape*current_output_shape*current_rank, -1))
+                    Q, R = np.linalg.qr(L, mode="complete")
+
                     rank_right = self.shape[k][3]
-
-                    Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
-
                     Q = Q[:,:rank_right]
-                    Q = np.reshape(Q, newshape=(current_rank, current_input_shape, current_output_shape, rank_right))
                     R = R[:rank_right, :]
 
-                    self.sites[k] = Q
+                    self.sites[k] = self.tensoricization(Q, k)
+                    T = R
 
-                    current_input_shape = self.shape[k+1][1]
-                    current_output_shape = self.shape[k+1][2]
-                    current_rank = rank_right
-                    current_matrix = R
+                    self.parameters_number += np.prod(self.sites[k].shape)
 
-                current_matrix = np.reshape(current_matrix, newshape=(-1, current_input_shape, current_output_shape))[:, :, :, np.newaxis]
-                if self.verbose == 1: print(current_matrix.shape)
-                self.sites[-1] = current_matrix
+                self.sites[-1] = self.tensoricization(T, n)
+                self.parameters_number += np.prod(self.sites[-1].shape)
 
                 del self.tensor
                 gc.collect()
@@ -516,55 +512,83 @@ class MatrixProductOperator:
     
     def left_orthonormalization(self, bond_shape=()):
         for k in range(self.sites_number-1):
+            print(k, k+1)
+            L = self.left_site_matricization(k)
+            R = self.right_site_matricization(k+1)
 
-            L = self.left_matricization(k)
-            R = self.right_matricization(k+1)
+            U, B = np.linalg.qr(L)
 
-            U, S, V = np.linalg.svd(L, full_matrices=True)
-
-            W = (S * V.T) @ R
+            W = B @ R
 
             self.sites[k] = self.tensoricization(U, k)
             self.sites[k+1] = self.tensoricization(W, k+1)
         
+        # L = self.left_site_matricization(-1)
+        # V, U = np.linalg.qr(L)
+        # self.sites[-1] = self.tensoricization(V, -1)
+
         self.orthonormalized = 'left'
     
     def right_orthonormalization(self, bond_shape=()):
         for k in range(self.sites_number-1, 0, -1):
             
-            R = self.right_matricization(k)
-            L = self.left_matricization(k-1)
-
-            U, S, V = np.linalg.svd(R, full_matrices=True)
-
-            W = L @ (U * S)
+            R = self.right_site_matricization(k)
+            L = self.left_site_matricization(k-1)
+            
+            V, U = np.linalg.qr(R.T)
+            # U, S, V = np.linalg.svd(R, full_matrices=False)
+            W = L @ U.T
+            # W = L @ (U * S)
 
             self.sites[k] = self.tensoricization(V.T, k)
             self.sites[k-1] = self.tensoricization(W, k-1)
 
+        # R = self.right_site_matricization(0)
+        # V, U = np.linalg.qr(R.T)
+        # self.sites[0] = self.tensoricization(V.T, 0)
+
         self.orthonormalized = 'right'
 
-    def left_matricization(self, index):
+    def left_site_matricization(self, index):
+        return self.left_matricization(self.sites[index], index)
+
+    def right_site_matricization(self, index):
+        return self.right_matricization(self.sites[index], index)
+
+    def left_matricization(self, matrix: Union[np.ndarray, List] = None, index: int = 0):
+        if matrix is None:
+            lrank = self.shape[index][0]
+            rrank = self.shape[index][3]
+                
+            input_shape = self.shape[index][1]
+            output_shape = self.shape[index][2]
+
+            return np.reshape(self.sites[index], newshape=(input_shape*output_shape*lrank, rrank))
+        else:
+            lrank = self.shape[index][0]
+                
+            input_shape = self.shape[index][1]
+            output_shape = self.shape[index][2]
+
+            return np.reshape(matrix, newshape=(input_shape*output_shape*lrank, -1))
+
+    def right_matricization(self, matrix: Union[np.ndarray, List] = None, index: int = 0):
+        if matrix is None:
+            lrank = self.shape[index][0]
+            rrank = self.shape[index][3]
+                
+            input_shape = self.shape[index][1]
+            output_shape = self.shape[index][2]
+
+            return np.reshape(self.sites[index], newshape=(lrank, input_shape*output_shape*rrank))
+        else:
+            rrank = self.shape[index][3]
+                
+            input_shape = self.shape[index][1]
+            output_shape = self.shape[index][2]
+
+            return np.reshape(matrix, newshape=(-1, input_shape*output_shape*rrank))
         
-        lrank = self.shape[index][0]
-        rrank = self.shape[index][3]
-            
-        input_shape = self.shape[index][1]
-        output_shape = self.shape[index][2]
-
-        return np.reshape(self.sites[index], newshape=(input_shape*output_shape*lrank, rrank))
-
-
-    def right_matricization(self, index):
-        
-        lrank = self.shape[index][0]
-        rrank = self.shape[index][3]
-            
-        input_shape = self.shape[index][1]
-        output_shape = self.shape[index][2]
-
-        return np.reshape(self.sites[index], newshape=(lrank, input_shape*output_shape*rrank))
-
     def tensoricization(self, matrix, index):
         
         lrank = self.shape[index][0]
@@ -576,12 +600,11 @@ class MatrixProductOperator:
         return np.reshape(matrix, newshape=(lrank, input_shape, output_shape, rrank))
 
     def left_orthogonality(self, index):
-        L = self.left_matricization(index)
-        print('L', L.shape)
-        return L @ L.T
+        L = self.left_matricization(self.sites[index], index)
+        return L.T @ L
     
     def right_orthogonality(self, index):
-        R = self.right_matricization(index)
+        R = self.right_matricization(self.sites[index], index)
         return R @ R.T
 
 
