@@ -8,6 +8,38 @@ np.set_printoptions(suppress=True)
 
 
 
+
+def test_apply():
+    # w = np.arange(3**6).reshape((3,3,3,3,3,3))
+    # W = MatrixProductOperator(w, bond_shape=(4,4,)).decompose()
+    
+    # z = np.arange(4**4*3**4).reshape((4,4,4,4,3,3,3,3))
+    # Z = MatrixProductOperator(z, bond_shape=(2,2,2,)).decompose()
+
+    # print(Z)
+    # Z.apply(W, [1,2,3])
+    # print(Z)
+
+    w = np.arange(3**4).reshape((3,3,3,3))
+    W = MatrixProductOperator(w, bond_shape=(2,)).decompose()
+    z = np.arange(3**4).reshape((3,3,3,3))
+    Z = MatrixProductOperator(w, bond_shape=(2,)).decompose()
+    # z = np.arange(4**4*3**4).reshape((4,4,4,4,3,3,3,3))
+    # Z = MatrixProductOperator(z, bond_shape=(2,2,2,)).decompose()
+    print(Z)
+    print(W)
+    X = Z @ W
+    print(X[(1,1),(1,1)])
+
+    Z.apply(W, [0,1])
+
+    print(Z[(1,1),(1,1)])
+    # print(X.to_tensor())
+    # print(Z.to_tensor())
+
+    # q = np.array([1,0,0,0,0,0,0,0]).reshape((2,2,2))
+    # Q = MatrixProductOperator(q, (2,2))
+
 def test_decompose():
     w = np.arange(2**4).reshape((2,2,2,2))
     W = MatrixProductOperator(w, bond_shape=(4,))
@@ -269,5 +301,6 @@ def test_to_tensor():
 # test_mul()
 # test_matmul()
 # test_dot()
-test_compress()
+# test_compress()
 # test_orthogonality()
+test_apply()

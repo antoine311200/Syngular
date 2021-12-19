@@ -415,7 +415,7 @@ class MatrixProductOperator:
         return tensor
 
     def decompose(self, mode="left"):
-        import time
+        
         if not self.decomposed:
             if mode == "left":
 
@@ -562,7 +562,60 @@ class MatrixProductOperator:
 
             return that
 
+    def apply(self, operator, indices):
+        if self.decomposed:
+            if isinstance(operator, MatrixProductOperator):
+                n = self.sites_number
+                m = len(indices)
+                struct = []
+                for idx in range(m):
+                    jdx = indices[idx]
+                    
+                    struct += [self.sites[jdx], [jdx+1, n+jdx+2, 2*n+jdx+2, jdx+2]]
+                    struct += [operator.sites[idx], [3*n+jdx+2, 2*n+jdx+2, 4*n+jdx+3, 3*n+jdx+3]]
+                
+                output_shape = [
+                    [indices[0]+1, 3*n+indices[0]+2] + 
+                    list(range(n+indices[0]+2,n+indices[0]+m+2)) + 
+                    list(range(4*n+indices[0]+3,4*n+indices[0]+m+3)) + 
+                    [indices[-1]+2, 3*n+indices[-1]+3]
+                ]
+                struct += output_shape
+                # print(struct)
 
+                T = np.squeeze(np.einsum(*struct), axis=(1, len(output_shape)-2))
+
+                for idx in range(m-1):
+                    jdx = indices[idx]
+                    lrank_shape = self.sites[jdx].shape[0]
+                    input_shape = self.sites[jdx].shape[1]
+                    output_shape = operator.sites[idx].shape[2]
+
+                    L = np.reshape(T, (lrank_shape*input_shape*output_shape, -1))
+                    
+                    Q, R = np.linalg.qr(L, mode="complete")
+
+                    rank_right = self.sites[jdx].shape[3]
+                    Q = Q[:,:rank_right]
+                    R = R[:rank_right, :]
+
+                    self.sites[jdx] = np.reshape(Q, (lrank_shape, input_shape, output_shape, rank_right))
+                    T = R
+
+                lrank_shape = self.sites[indices[-1]].shape[0]
+                input_shape = self.sites[indices[-1]].shape[1]
+                output_shape = operator.sites[m-1].shape[2]
+                rank_right = self.sites[indices[-1]].shape[3]
+
+                self.sites[indices[-1]] = np.reshape(T, (lrank_shape, input_shape, output_shape, rank_right))
+            else:
+                pass
+        else:
+            raise Exception("MatrixProductState not decomposed")
+
+    @staticmethod
+    def split():
+        pass
 
     def retrieve(self, input_indices, output_indices):
         einsum_structure = []
