@@ -182,10 +182,15 @@ class MatrixProductOperator:
 
     def __init__(self, tensor=None, bond_shape: Union[Union[Tuple, List], np.ndarray]=(), verbose=0) -> None:
         
+        self.parameters_number = 0
+        self.real_parameters_number = 0
+
         if tensor is not None:
             self.tensor = tensor
             self.tensor_shape = tensor.shape
             self.bond_shape = tuple(bond_shape)
+
+            self.real_parameters_number = np.prod(self.tensor_shape)
 
             self.sites_number = len(self.bond_shape)+1
             self.sites = [None] * self.sites_number
@@ -214,9 +219,6 @@ class MatrixProductOperator:
         self.verbose = verbose
         self.decomposed = False
         self.orthonormalized = None
-
-        self.parameters_number = 0
-        self.real_parameters_number = np.prod(self.tensor_shape)
 
     def __add__(self, mpo):
         print(mpo)
@@ -340,7 +342,7 @@ class MatrixProductOperator:
 
     def __rshift__(self, dim):
         if isinstance(dim, int):
-            return self.compress(dim)
+            return self.compress(dim, strict=True)
         else:
             raise Exception("dimension should be an integer")
 
@@ -369,12 +371,16 @@ class MatrixProductOperator:
         return MatrixProductOperator(tensor, bond_shape=bond_shape).decompose()
 
     @staticmethod
-    def from_sites(sites):
+    def from_sites(sites, orthogonality=None, real_parameters_number=None):
         mp = MatrixProductOperator()
         mp.sites = sites
         mp.sites_number = len(sites)
 
         mp.decomposed = True
+        mp.orthonormalized = orthogonality
+
+        mp.parameters_number = np.sum([np.prod(site.shape) for site in sites])
+        mp.real_parameters_number = real_parameters_number
 
         mp.input_shape, mp.output_shape, mp.bond_shape = (), (), ()
         mp.shape = [None] * mp.sites_number
@@ -393,6 +399,9 @@ class MatrixProductOperator:
     def empty():
         return MatrixProductOperator()
 
+    def copy(self):
+        return MatrixProductOperator.from_sites(self.sites)
+
     def to_tensor(self):
         tensor = np.zeros(shape=(*self.input_shape, *self.output_shape))
 
@@ -406,6 +415,7 @@ class MatrixProductOperator:
         return tensor
 
     def decompose(self, mode="left"):
+        import time
         if not self.decomposed:
             if mode == "left":
 
@@ -446,59 +456,113 @@ class MatrixProductOperator:
 
         return self
 
-    def compress(self, dim):
+    def compress(self, dim, mode='left', strict=False):
+        n = self.sites_number-1
+        parameters_number = 0
 
-        for k in range(self.sites_number-1, 0, -1):
-            current_rank = self.shape[k][0]
-            next_rank = self.shape[k][3]
-            
-            current_input_shape = self.shape[k][1]
-            current_output_shape = self.shape[k][2]
-            
-            print('S', self.sites[k].shape, current_input_shape, current_output_shape, next_rank)
-            unfold_site = np.reshape(self.sites[k], newshape=(-1, current_input_shape*current_output_shape*next_rank))
+        if not strict:
+            if mode == 'left':
+                if self.orthonormalized != 'left': self.left_orthonormalization()
 
-            Q, R = np.linalg.qr(unfold_site.T)
-            print('M', unfold_site.T.shape)
-            print('Q', Q.shape)
-            print('R', R.shape)
-            print('*', np.matmul(Q, R).shape)
-            
-            Q = Q[dim:,:]
-            self.sites[k] = Q.reshape((dim, current_input_shape, current_input_shape, next_rank))
-            print(Q.shape)
-            self.sites[k-1] = np.matmul(Q, R).reshape((self.shape[k-1][0], current_input_shape, current_input_shape, dim))
+                for k in range(n):
+                    L = self.left_site_matricization(k)
+                    R = self.right_site_matricization(k+1)
+                    
+                    Q, S = np.linalg.qr(L, mode="complete")
 
-            print("S'", self.sites[k-1].shape)
+                    Q = Q[:,:dim]
+                    S = S[:dim, :]
 
-        print([site.shape for site in self.sites])
-        
-        current_rank = self.shape[0][0]
-        next_rank = self.shape[0][3]
-        
-        current_input_shape = self.shape[0][1]
-        current_output_shape = self.shape[0][2]
+                    W = S @ R
+                    
+                    print(Q.shape, L.shape, S.T.shape, R.shape)
+                    print(W.shape)
 
-        for k in range(self.sites_number-1):
-            if dim > current_rank and (k != 0 or k != self.sites_number-2):
-                raise Exception("compression dimension must be lower than current bond dimension")
-            
-            unfold_site = np.reshape(self.sites[k], newshape=(current_input_shape*current_output_shape*current_rank, -1))
-            unfold_next = np.reshape(self.sites[k+1], newshape=(next_rank, -1))
-            Q, R = np.linalg.qr(unfold_site)
-            Q = Q[:,:dim]
-            Q = np.reshape(Q, newshape=(current_rank, current_input_shape, current_output_shape, dim))
-            R = R[:dim, :]
+                    l1 = list(self.shape[k])
+                    l2 = list(self.shape[k+1])
+                    l1[3] = dim
+                    l2[0] = dim
+                    self.shape[k] = tuple(l1)
+                    self.shape[k+1] = tuple(l2)
 
-            next_input_shape = self.shape[k+1][1]
-            next_output_shape = self.shape[k+1][2]
+                    self.sites[k] = self.tensoricization(Q, k)
+                    self.sites[k+1] = self.tensoricization(W, k+1)
 
-            self.sites[k] = Q
-            self.sites[k+1] = np.matmul(unfold_next, R.T).reshape((dim, next_input_shape, next_output_shape, -1))
-            
-            current_input_shape = self.shape[k+1][1]
-            current_output_shape = self.shape[k+1][2]
-            current_rank = dim
+                    parameters_number += np.prod(self.sites[k].shape)
+
+                parameters_number += np.prod(self.sites[-1].shape)
+                self.parameters_number = parameters_number
+            elif mode == 'right':
+                
+                if self.orthonormalized != 'right': self.right_orthonormalization()
+
+                for k in range(n, 0, -1):
+                    R = self.right_site_matricization(k)
+                    L = self.left_site_matricization(k-1)
+
+                    Q, S = np.linalg.qr(R.T)
+
+                    Q = Q[:,:dim]
+                    S = S[:dim, :]
+
+
+                    W = L @ S.T
+
+                    l1 = list(self.shape[k])
+                    l2 = list(self.shape[k-1])
+                    l1[0] = dim
+                    l2[3] = dim
+                    self.shape[k] = tuple(l1)
+                    self.shape[k-1] = tuple(l2)
+
+                    self.sites[k] = self.tensoricization(Q.T, k)
+                    self.sites[k-1] = self.tensoricization(W, k-1)
+
+                    parameters_number += np.prod(self.sites[k].shape)
+
+                parameters_number += np.prod(self.sites[0].shape)
+                self.parameters_number = parameters_number
+
+                # print([site.shape for site in self.sites])
+        else:
+            that = self.copy()
+
+            print(that)
+
+            if mode == 'left':
+                # if self.orthonormalized != 'left': self.left_orthonormalization()
+                for k in range(n):
+                    L = that.left_site_matricization(k)
+                    R = that.right_site_matricization(k+1)
+                    
+                    Q, S = np.linalg.qr(L, mode="complete")
+
+                    Q = Q[:,:dim]
+                    S = S[:dim, :]
+
+                    W = S @ R
+                    
+                    print(Q.shape, L.shape, S.T.shape, R.shape)
+                    print(W.shape)
+
+                    l1 = list(that.shape[k])
+                    l2 = list(that.shape[k+1])
+                    l1[3] = dim
+                    l2[0] = dim
+                    that.shape[k] = tuple(l1)
+                    that.shape[k+1] = tuple(l2)
+
+                    that.sites[k] = that.tensoricization(Q, k)
+                    that.sites[k+1] = that.tensoricization(W, k+1)
+
+                    parameters_number += np.prod(that.sites[k].shape)
+
+                parameters_number += np.prod(that.sites[-1].shape)
+                that.parameters_number = parameters_number
+
+            return that
+
+
 
     def retrieve(self, input_indices, output_indices):
         einsum_structure = []
@@ -588,7 +652,7 @@ class MatrixProductOperator:
             output_shape = self.shape[index][2]
 
             return np.reshape(matrix, newshape=(-1, input_shape*output_shape*rrank))
-        
+    
     def tensoricization(self, matrix, index):
         
         lrank = self.shape[index][0]
