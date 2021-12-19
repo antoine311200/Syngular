@@ -8,6 +8,74 @@ import time
 
 
 
+def test_decompose():
+    w = np.arange(2**4).reshape((2,2,2,2))
+    W = MatrixProductOperator(w, bond_shape=(4,))
+    
+    print("---------- MatrixProductOperator.decompose() ----------")
+    start = time.time()
+    W.decompose()
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+    print(w[1,1,1,1])
+    print(W[(1,1),(1,1)])
+
+def test_orthogonality():
+    w = np.arange(2**4).reshape((2,2,2,2))
+    W = MatrixProductOperator(w, bond_shape=(4,)).decompose()
+    
+    W.left_orthonormalization()
+    print("---------- MatrixProductOperator.left_orthogonality() ----------")
+    start = time.time()
+    print(W.left_orthogonality(0))
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+    
+    W.right_orthonormalization()
+    print()
+    print("---------- MatrixProductOperator.left_orthogonality() ----------")
+    start = time.time()
+    print(W.right_orthogonality(1))
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+def test_compress():
+    w = np.arange(2**4).reshape((2,2,2,2))
+    W = MatrixProductOperator(w, bond_shape=(4,)).decompose()
+    print(W)
+    print(W.to_tensor())
+
+    print("---------- MatrixProductOperator.compress(mp) ----------")
+    start = time.time()
+    W.compress(2)
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+    print(W)
+    print(W.to_tensor())
+
+def test_dot():
+    x = np.arange(2**2).reshape((2,2))
+    X = MatrixProductState(x, bond_shape=(2,)).decompose()
+
+    print("---------- MatrixProductOperator.__or__(mp) ----------")
+    start = time.time()
+    Z = X | X
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+    x = x.reshape(4)
+    print(np.dot(x,x))
+    print(Z)
+
+    print(X.norm())
+
 def test_matmul():
     w = np.arange(2**4).reshape((2,2,2,2))
     x = np.arange(2**2).reshape((2,2))
@@ -43,10 +111,17 @@ def test_from_sites():
     print("-------------------------------------------------------")
 
 def test_mul():
-    x = np.arange(2**6).reshape((2,2,2,2,2,2))
-    y = np.arange(2**6).reshape((2,2,2,2,2,2))
-    X = MatrixProductOperator(x, bond_shape=(3,3,)).decompose()
-    Y = MatrixProductOperator(y, bond_shape=(3,3,)).decompose()
+    # x = np.arange(2**6).reshape((2,2,2,2,2,2))
+    # y = np.arange(2**6).reshape((2,2,2,2,2,2))
+
+    # X = MatrixProductOperator(x, bond_shape=(3,3,)).decompose()
+    # Y = MatrixProductOperator(y, bond_shape=(3,3,)).decompose()
+
+    
+    x = np.arange(2**4).reshape((2,2,2,2))
+    y = np.arange(2**4).reshape((2,2,2,2))
+    X = MatrixProductOperator(x, bond_shape=(2,)).decompose()
+    Y = MatrixProductOperator(y, bond_shape=(2,)).decompose()
 
     print("---------- MatrixProductOperator.__mul__(mp) ----------")
     start = time.time()
@@ -56,16 +131,19 @@ def test_mul():
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
 
-    
-    print(x[1,1,1,1,1,1])
-    print(X[(1,1,1),(1,1,1)])
+    print(z)
+    print(Z.to_tensor())
+    # print(x[1,1,1,1,1,1])
+    # print(X[(1,1,1),(1,1,1)])
 
-    print(y[1,1,1,1,1,1])
-    print(Y[(1,1,1),(1,1,1)])
+    # print(y[1,1,1,1,1,1])
+    # print(Y[(1,1,1),(1,1,1)])
 
-    print(Z)
-    print(z[1,1,1,1,1,1])
-    print(Z[(1,1,1),(1,1,1)])
+    # print(Z)
+    # print(z[1,1,1,1,1,1])
+    # print(Z[(1,1,1),(1,1,1)])
+
+    # print(z)
 
 def test_random():
     
@@ -116,9 +194,15 @@ def test_to_tensor():
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
 
+
+
+test_decompose()
 # test_from_sites()
 # test_random()
 # test_to_tensor()
 # test_add()
 # test_mul()
-test_matmul()
+# test_matmul()
+# test_dot()
+# test_compress()
+# test_orthogonality()

@@ -40,6 +40,21 @@ class MatrixProductState:
         self.verbose = verbose
         self.decomposed = False
 
+    def __or__(self, mp):
+
+        if isinstance(mp, MatrixProductState):
+            struct = []
+            n = self.sites_number
+            for idx in range(n):
+                struct += [
+                    self.sites[idx], [idx,n+idx+1,idx+1], 
+                    mp.sites[idx], [2*n+idx+1, n+idx+1, 2*n+idx+2]
+                ]
+            r = np.einsum(*struct)
+            return r.reshape(1)[0]
+        else:
+            raise Exception("right-hand site must be a MatrixProductState")
+
     
     def __getitem__(self, key):
 
@@ -75,6 +90,8 @@ class MatrixProductState:
 
         return mp
 
+    def norm(self):
+        return self | self
     
     def to_tensor(self):
         tensor = np.zeros(shape=self.input_shape)
@@ -104,7 +121,7 @@ class MatrixProductState:
                     Q = np.reshape(Q, newshape=(current_rank, current_shape, -1))
                     R = R[:rank, :]
 
-                    print(f"Core {k} with {current_rank} , {current_shape}")
+                    if self.verbose: print(f"Core {k} with {current_rank} , {current_shape}")
 
                     self.sites[k] = Q
 
@@ -137,35 +154,6 @@ class MatrixProductState:
             einsum_structure.append([idx, Ellipsis, idx+1])
 
         return np.einsum(*einsum_structure)
-
-    # def update(self, sites, value):
-
-    #     print(self.sites[sites[0]].shape)
-    #     print(self.sites[sites[1]].shape)
-
-    #     merge_site = np.einsum(self.sites[sites[0]], [1,2,3], self.sites[sites[1]], [3,4,5], [1,2,4,5])
-
-    #     merge_site = np.einsum(merge_site, [1,2,3,4], value, [5,2,3,6], [1,5,6,4])
-
-    #     print("shape")
-    #     print(merge_site.shape)
-
-    #     rank_left, rank_1, rank_2, rank_right = merge_site.shape
-
-    #     unfolding_matrix = np.reshape(merge_site, newshape=(rank_left*rank_1, -1))
-
-    #     Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
-
-    #     Q = Q[:,:rank_left]
-    #     Q = np.reshape(Q, newshape=(rank_left, rank_1, -1))
-    #     R = R[:rank_left, :]
-    #     R = np.reshape(R, newshape=(-1, rank_2, rank_right))
-
-    #     # print(Q.shape, R.shape)
-
-    #     self.sites[sites[0]] = Q
-    #     self.sites[sites[1]] = R
-
 
 
 
@@ -226,6 +214,7 @@ class MatrixProductOperator:
         
         self.verbose = verbose
         self.decomposed = False
+        self.orthonormalized = None
 
     def __add__(self, mpo):
         print(mpo)
@@ -435,8 +424,8 @@ class MatrixProductOperator:
 
                     self.sites[k] = Q
 
-                    current_input_shape = self.shape[k][1]
-                    current_output_shape = self.shape[k][2]
+                    current_input_shape = self.shape[k+1][1]
+                    current_output_shape = self.shape[k+1][2]
                     current_rank = rank_right
                     current_matrix = R
 
@@ -462,10 +451,58 @@ class MatrixProductOperator:
         return self
 
     def compress(self, dim):
-        for k in range(self.sites_number-1):
-            pass
-            # Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
 
+        for k in range(self.sites_number-1, 0, -1):
+            current_rank = self.shape[k][0]
+            next_rank = self.shape[k][3]
+            
+            current_input_shape = self.shape[k][1]
+            current_output_shape = self.shape[k][2]
+            
+            print('S', self.sites[k].shape, current_input_shape, current_output_shape, next_rank)
+            unfold_site = np.reshape(self.sites[k], newshape=(-1, current_input_shape*current_output_shape*next_rank))
+
+            Q, R = np.linalg.qr(unfold_site.T)
+            print('M', unfold_site.T.shape)
+            print('Q', Q.shape)
+            print('R', R.shape)
+            print('*', np.matmul(Q, R).shape)
+            
+            Q = Q[dim:,:]
+            self.sites[k] = Q.reshape((dim, current_input_shape, current_input_shape, next_rank))
+            print(Q.shape)
+            self.sites[k-1] = np.matmul(Q, R).reshape((self.shape[k-1][0], current_input_shape, current_input_shape, dim))
+
+            print("S'", self.sites[k-1].shape)
+
+        print([site.shape for site in self.sites])
+        
+        current_rank = self.shape[0][0]
+        next_rank = self.shape[0][3]
+        
+        current_input_shape = self.shape[0][1]
+        current_output_shape = self.shape[0][2]
+
+        for k in range(self.sites_number-1):
+            if dim > current_rank and (k != 0 or k != self.sites_number-2):
+                raise Exception("compression dimension must be lower than current bond dimension")
+            
+            unfold_site = np.reshape(self.sites[k], newshape=(current_input_shape*current_output_shape*current_rank, -1))
+            unfold_next = np.reshape(self.sites[k+1], newshape=(next_rank, -1))
+            Q, R = np.linalg.qr(unfold_site)
+            Q = Q[:,:dim]
+            Q = np.reshape(Q, newshape=(current_rank, current_input_shape, current_output_shape, dim))
+            R = R[:dim, :]
+
+            next_input_shape = self.shape[k+1][1]
+            next_output_shape = self.shape[k+1][2]
+
+            self.sites[k] = Q
+            self.sites[k+1] = np.matmul(unfold_next, R.T).reshape((dim, next_input_shape, next_output_shape, -1))
+            
+            current_input_shape = self.shape[k+1][1]
+            current_output_shape = self.shape[k+1][2]
+            current_rank = dim
 
     def retrieve(self, input_indices, output_indices):
         einsum_structure = []
@@ -476,100 +513,76 @@ class MatrixProductOperator:
 
         return np.einsum(*einsum_structure)
 
-    # def copy(self):
-    #     new_mpo = MatrixProductOperator(self.tensor, self.bond_shape)
-    #     new_mpo.sites = self.sites 
-    #     return new_mpo
-
-    def contract(self, mp, indices=None):
-        if isinstance(mp, MatrixProductState):
-            for idx in range(self.sites_number):
-                self.sites[idx] = np.einsum(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,6,2,7], [5,3,6,7])
-        elif isinstance(mp, MatrixProductOperator):
-            print("ok")
-
-            '''
-            Contraction through the input indices of the current MPO and the output indices of the passed MPO
-            > (0, ..., N)
-
-                |   |   |   |
-                O---O---O---O
-                |   |   |   |
-                O---O---O---O
-                |   |   |   |
-            '''
-
-            for idx in range(self.sites_number):
-                self.sites[idx] = np.einsum(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,6,2,7], [5,3,6,7])
-        return self
-
     
-    def contract(mp1, mp2, mode="left"):
-        sites = [None] * mp1.sites_number
-        if isinstance(mp2, MatrixProductState):
+    def left_orthonormalization(self, bond_shape=()):
+        for k in range(self.sites_number-1):
 
-            if mode == 'left':
-                struct = []
-                n = mp2.sites_number
+            L = self.left_matricization(k)
+            R = self.right_matricization(k+1)
 
-                for idx in range(n):
-                    struct += [mp2.sites[idx], [idx+1, n+idx+2, idx+2]]
-                    struct += [mp1.sites[idx], [2*n+2+idx, n+idx+2, 3*n+idx+3, 2*n+2+idx+1]]
-                struct += [[]]
-                # struct += [mp2, list(range(1, self.cores_number+1))]
-                # struct += [self.cores[0], [1, self.cores_number+1, 2*self.cores_number+1]]
-                
-                # for idx in range(2, self.cores_number):
-                #     struct += [self.cores[idx-1]]
-                #     struct += [[idx, self.cores_number+idx, 2*self.cores_number+1, 2*self.cores_number+2]]
+            U, S, V = np.linalg.svd(L, full_matrices=True)
 
-                # struct += [self.cores[-1], [self.cores_number, 2*self.cores_number, 3*self.cores_number-1]]
-                # struct += [list(range(self.cores_number+1, 2*self.cores_number+1))]
+            W = (S * V.T) @ R
 
-                
-                result = np.einsum(*struct)
-
-            for idx in range(mp1.sites_number):
-                # print(mp1._shape[idx], mp2._shape[idx])
-                print(mp1.sites[idx].shape, mp2.sites[idx].shape)
-                sites[idx] = np.einsum(mp1.sites[idx], [1,2,3,4], mp2.sites[idx], [5,2,6], [5,3,6])
-                # p rint(sites[idx].shape)
+            self.sites[k] = self.tensoricization(U, k)
+            self.sites[k+1] = self.tensoricization(W, k+1)
+        
+        self.orthonormalized = 'left'
+    
+    def right_orthonormalization(self, bond_shape=()):
+        for k in range(self.sites_number-1, 0, -1):
             
-        elif isinstance(mp2, MatrixProductOperator):
-            '''
-            Contraction through the input indices of the current MPO and the output indices of the passed MPO
-            > (0, ..., N)
+            R = self.right_matricization(k)
+            L = self.left_matricization(k-1)
 
-                |   |   |   |
-                O---O---O---O
-                |   |   |   |
-                O---O---O---O
-                |   |   |   |
-            '''
+            U, S, V = np.linalg.svd(R, full_matrices=True)
 
-            if mode == 'left':
-                struct = []
-                n = mp2.sites_number
+            W = L @ (U * S)
 
-                for idx in range(n):
-                    struct += [[idx+1, n+idx+2, 2*n+idx+2, idx+2]]
-                    struct += [[3*n+2+idx, 2*n+idx+2, 4*n+idx+3, 3*n+2+idx+1]]
-                print("STRUCT", struct)
-                result = np.einsum(*struct)
+            self.sites[k] = self.tensoricization(V.T, k)
+            self.sites[k-1] = self.tensoricization(W, k-1)
 
-            # for idx in range(mp1.sites_number):
-            #     sites[idx] = np.einsum(mp1.sites[idx], [1,2,3,4], mp2.sites[idx], [5,6,2,7])
-        else:
-            print("Type", type(mp2))
-        # print("Sites", sites)
-        print("Result", result)
-        mp = mp2.copy()
-        mp.sites = sites
-        return mp
+        self.orthonormalized = 'right'
+
+    def left_matricization(self, index):
+        
+        lrank = self.shape[index][0]
+        rrank = self.shape[index][3]
+            
+        input_shape = self.shape[index][1]
+        output_shape = self.shape[index][2]
+
+        return np.reshape(self.sites[index], newshape=(input_shape*output_shape*lrank, rrank))
 
 
+    def right_matricization(self, index):
+        
+        lrank = self.shape[index][0]
+        rrank = self.shape[index][3]
+            
+        input_shape = self.shape[index][1]
+        output_shape = self.shape[index][2]
 
+        return np.reshape(self.sites[index], newshape=(lrank, input_shape*output_shape*rrank))
 
+    def tensoricization(self, matrix, index):
+        
+        lrank = self.shape[index][0]
+        rrank = self.shape[index][3]
+            
+        input_shape = self.shape[index][1]
+        output_shape = self.shape[index][2]
+
+        return np.reshape(matrix, newshape=(lrank, input_shape, output_shape, rrank))
+
+    def left_orthogonality(self, index):
+        L = self.left_matricization(index)
+        print('L', L.shape)
+        return L @ L.T
+    
+    def right_orthogonality(self, index):
+        R = self.right_matricization(index)
+        return R @ R.T
 
 
 
