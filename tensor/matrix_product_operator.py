@@ -4,6 +4,7 @@ from __future__ import annotations
 import gc
 import itertools
 from typing import Tuple, List, Union
+from numpy.core.numeric import outer
 
 from opt_einsum import contract
 
@@ -29,20 +30,21 @@ class MatrixProductOperator:
             self.sites_number = len(self.bond_shape)+1
             self.sites = [None] * self.sites_number
 
-            if self.bond_shape == (): self.bond_shape = (1,)
-
             self.input_shape    = tuple(self.tensor_shape[:self.sites_number])
             self.output_shape   = tuple(self.tensor_shape[self.sites_number:])
-
+    
             if len(self.input_shape) != len(self.output_shape):
                 raise Exception("input_shape and output_shape of the tensor must have the same length")
 
             if len(self.input_shape) != len(self.bond_shape)+1:
                 raise Exception("dimensions of bond indices do not match input dimension - 1")
 
-            self.shape = [(1, self.tensor_shape[0], self.tensor_shape[self.sites_number], self.bond_shape[0])]
-            self.shape += [(self.bond_shape[i-1], self.tensor_shape[i], self.tensor_shape[self.sites_number+i], self.bond_shape[i]) for i in range(1, self.sites_number-1)]
-            self.shape += [(self.bond_shape[self.sites_number-2], self.tensor_shape[self.sites_number-1], self.tensor_shape[2*self.sites_number-1], 1)]
+            if self.bond_shape != ():
+                self.shape = [(1, self.tensor_shape[0], self.tensor_shape[self.sites_number], self.bond_shape[0])]
+                self.shape += [(self.bond_shape[i-1], self.tensor_shape[i], self.tensor_shape[self.sites_number+i], self.bond_shape[i]) for i in range(1, self.sites_number-1)]
+                self.shape += [(self.bond_shape[self.sites_number-2], self.tensor_shape[self.sites_number-1], self.tensor_shape[2*self.sites_number-1], 1)]
+            else:
+                self.shape = [(1, self.tensor_shape[0], self.tensor_shape[1], 1)]
 
             self.shape_indices = [
                 (2*self.sites_number+i, i, self.sites_number+i, 2*self.sites_number+i+1) for i in range(self.sites_number)
@@ -296,7 +298,14 @@ class MatrixProductOperator:
         return tensor
 
     def decompose(self, mode="left"):
-        
+        if self.bond_shape == ():
+            self.sites = [self.tensor.reshape(1, self.tensor_shape[0], self.tensor_shape[1], 1)]
+            
+            self.decomposed = True
+
+            del self.tensor
+            gc.collect()
+
         if not self.decomposed:
             if mode == "left":
 

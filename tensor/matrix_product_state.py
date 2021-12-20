@@ -43,12 +43,14 @@ class MatrixProductState:
 
             if self.order != self.sites_number:
                 raise Exception("dimensions of bond indices do not match order - 1")
-
-            
-            self.shape = [(1, self.tensor_shape[0],self.bond_shape[0])]
-            self.shape += [(self.bond_shape[i-1], self.tensor_shape[i], self.bond_shape[i]) for i in range(1, self.sites_number-1)]
-            self.shape += [(self.bond_shape[self.sites_number-2], self.tensor_shape[self.sites_number-1], 1)]
-            
+     
+            if self.bond_shape != ():
+                self.shape = [(1, self.tensor_shape[0],self.bond_shape[0])]
+                self.shape += [(self.bond_shape[i-1], self.tensor_shape[i], self.bond_shape[i]) for i in range(1, self.sites_number-1)]
+                self.shape += [(self.bond_shape[self.sites_number-2], self.tensor_shape[self.sites_number-1], 1)]
+            else:
+                self.shape = [(1, self.tensor_shape[0], 1)]
+        
         self.verbose = verbose
         self.decomposed = False
 
@@ -185,6 +187,7 @@ class MatrixProductState:
         mp = MatrixProductState()
         mp.sites = sites
         mp.sites_number = len(sites)
+        # mp.order = len()
 
         mp.decomposed = True
         mp.orthonormalized = orthogonality
@@ -213,11 +216,13 @@ class MatrixProductState:
     def zeros(input_shape, bond_shape):
         n = len(input_shape)
 
-        shape = [(1, input_shape[0],bond_shape[0])]
-        shape += [(bond_shape[i-1], input_shape[i], bond_shape[i]) for i in range(1, n-1)]
-        shape += [(bond_shape[n-2], input_shape[n-1], 1)]
-
-        print(shape)
+        if bond_shape != ():
+            shape = [(1, input_shape[0],bond_shape[0])]
+            shape += [(bond_shape[i-1], input_shape[i], bond_shape[i]) for i in range(1, n-1)]
+            shape += [(bond_shape[n-2], input_shape[n-1], 1)]
+        else:
+            shape = [(1, input_shape[0], 1)]
+        # print(shape)
         sites = []
         for idx in range(n):
             sites.append(np.zeros(shape=shape[idx]))
@@ -240,12 +245,12 @@ class MatrixProductState:
     @returns: the corresponding numpy tensor
     """
     def to_tensor(self):
-        tensor = np.zeros(shape=self.input_shape)
+        tensor = np.zeros(shape=self.input_shape, dtype=np.complex)
 
         range_inp = [range(inp) for inp in self.input_shape]
         
         for inp in itertools.product(*range_inp):
-                tensor[inp] = self[inp]
+            tensor[inp] = self[inp]
         
         return tensor
     
@@ -395,6 +400,50 @@ class MatrixProductState:
                 that.parameters_number = parameters_number
 
             return that
+
+    def apply(self, operator, index, strict=True):
+        if strict: that = self.copy()
+        # print("> Apply")
+        m = len(operator.shape) // 2
+        n = that.sites_number
+
+        # index = n-1-index
+
+        struct = []
+        struct += [operator, [*list(range(2*n+index, 2*n+m+index)), *list(range(3*n+index, 3*n+m+index))]]
+        for idx in range(index, m+index):
+            struct += [that.sites[idx], [idx, 2*n+idx, idx+1]]
+        struct += [[index, *list(range(3*n+index, 3*n+m+index)), m+index]]
+        # print(struct)
+
+        T = contract(*struct)
+        # print('T', T.shape)
+
+        # print(index, m, m+index-1, list(range(index, m+index-1)))
+        for k in range(index, m+index-1):
+            print("K", k)
+            lrank = T.shape[0]
+            input_shape = T.shape[1]
+
+            L = T.reshape(input_shape*lrank, -1)
+
+            Q, R = np.linalg.qr(L, mode="complete")
+            # print(Q.shape, R.shape)
+            rank = that.shape[k][2]
+            Q = Q[:,:rank]
+            R = R[:rank, :]
+
+            that.sites[k] = that.tensoricization(Q, k)
+            T = R
+        
+        # print(that.sites[m+index-1])
+        # print('---')
+        # print(T)
+        # print(that.sites[m+index-1].shape)
+        that.sites[m+index-1] = that.tensoricization(T, m+index-1)
+        # print(that.sites[m+index-1].shape)
+        
+        return that
 
     def retrieve(self, indices):
         einsum_structure = []

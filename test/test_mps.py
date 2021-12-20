@@ -6,6 +6,18 @@ import time
 
 np.set_printoptions(suppress=True)
 
+def test_apply():
+    x = np.arange(8).reshape((2,2,2))
+    X = MatrixProductState(x, bond_shape=(2,2)).decompose()
+
+    from syngular.quantum import gate
+
+    g = gate.CX.reshape((2,2,2,2))
+    # print(g)
+    X.apply(g, 1)
+
+    print(X)
+
 
 def test_augment():
     x = np.arange(8).reshape((2,2,2))
@@ -90,4 +102,5 @@ def test_random():
 # test_random()
 # test_zeros()
 
-test_augment()
+# test_augment()
+test_apply()
