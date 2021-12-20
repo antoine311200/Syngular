@@ -1,2 +1,2 @@
-from syngular.tensor.tensor_train import MatrixProductState
-from syngular.tensor.tensor_train import MatrixProductOperator
+from syngular.tensor.matrix_product_state import MatrixProductState
+from syngular.tensor.matrix_product_operator import MatrixProductOperator
