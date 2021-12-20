@@ -10,38 +10,6 @@ import matplotlib.pyplot as plt
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class MatrixProductDensityOperator:
 
     def __init__(self, tensor, bond_shape) -> None:
