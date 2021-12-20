@@ -7,6 +7,35 @@ import time
 np.set_printoptions(suppress=True)
 
 
+def test_augment():
+    x = np.arange(8).reshape((2,2,2))
+    X = MatrixProductState(x, bond_shape=(2,2)).decompose()
+    
+    Y = MatrixProductState.zeros((2,2,2),(2,2,))
+
+    print("---------- MatrixProductOperator.__add__(a, b) ----------")
+    start = time.time()
+    Z = X + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y + Y
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+    print(Z)
+    print(Z.to_tensor())
+    print(X.to_tensor())
+    print((Z >> 2).to_tensor())
+
+
+def test_zeros():
+    print("---------- MatrixProductOperator.__add__(a, b) ----------")
+    start = time.time()
+    Z = MatrixProductState.zeros((2,2,2),(2,2,))
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+    print(Z.to_tensor())
+    print(Z.shape)
+
 def test_add():
     x = np.arange(8).reshape((2,2,2))
     y = np.arange(8).reshape((2,2,2))
@@ -58,4 +87,7 @@ def test_random():
 
 # test_add()
 # test_compress()
-test_random()
+# test_random()
+# test_zeros()
+
+test_augment()

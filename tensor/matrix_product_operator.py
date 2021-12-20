@@ -5,6 +5,8 @@ import gc
 import itertools
 from typing import Tuple, List, Union
 
+from opt_einsum import contract
+
 import numpy as np
 from scipy import linalg
 
@@ -160,7 +162,7 @@ class MatrixProductOperator:
 
         if isinstance(mp, MatrixProductState):
             for idx in range(self.sites_number):
-                site = np.einsum(mp.sites[idx], [1,2,3], self.sites[idx], [4,2,6,5], [1,4,6,3,5])
+                site = contract(mp.sites[idx], [1,2,3], self.sites[idx], [4,2,6,5], [1,4,6,3,5])
 
                 site = site.reshape((
                     self.shape[idx][0]*mp.shape[idx][0],
@@ -171,7 +173,7 @@ class MatrixProductOperator:
             return MatrixProductState.from_sites(sites)
         elif isinstance(mp, MatrixProductOperator):
             for idx in range(self.sites_number):
-                site = np.einsum(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,3,6,7], [1,5,2,6,4,7])
+                site = contract(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,3,6,7], [1,5,2,6,4,7])
 
                 site = site.reshape((
                     self.shape[idx][0]*mp.shape[idx][0],
@@ -288,6 +290,7 @@ class MatrixProductOperator:
         
         for inp in itertools.product(*range_inp):
             for out in itertools.product(*range_out):
+                print(inp, out)
                 tensor[(*inp, *out)] = self[inp, out]
         
         return tensor
@@ -461,7 +464,7 @@ class MatrixProductOperator:
                 struct += output_shape
                 # print(struct)
 
-                T = np.squeeze(np.einsum(*struct), axis=(1, len(output_shape)-2))
+                T = np.squeeze(contract(*struct), axis=(1, len(output_shape)-2))
 
                 for idx in range(m-1):
                     jdx = indices[idx]
@@ -505,7 +508,7 @@ class MatrixProductOperator:
                 # ]
                 # struct += output_shape
                 # print(struct)
-                T = np.einsum(*struct)
+                T = contract(*struct)
                 print(T.shape)
 
         else:
@@ -522,7 +525,7 @@ class MatrixProductOperator:
             einsum_structure.append(self.sites[idx][:, input_indices[idx], output_indices[idx], :])
             einsum_structure.append([idx, idx+1])
 
-        return np.einsum(*einsum_structure)
+        return contract(*einsum_structure)
 
     
     def left_orthonormalization(self, bond_shape=()):

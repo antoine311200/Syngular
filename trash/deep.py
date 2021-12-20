@@ -1,7 +1,7 @@
 import itertools
 from PIL.Image import new
 from numpy.core.fromnumeric import size
-from syngular.tensor.tensor_train import MatrixProductOperator, MatrixProductState
+from syngular.trash.tensor_train import MatrixProductOperator, MatrixProductState
 
 import numpy as np
 

@@ -5,7 +5,7 @@ from typing import Tuple, List, Union
 import numpy as np
 from scipy import linalg
 
-
+from opt_einsum import contract
 
 class MatrixProductState:
 
@@ -115,7 +115,7 @@ class MatrixProductState:
                     self.sites[idx], [idx,n+idx+1,idx+1], 
                     mp.sites[idx], [2*n+idx+1, n+idx+1, 2*n+idx+2]
                 ]
-            r = np.einsum(*struct)
+            r = contract(*struct)
             return r.reshape(1)[0]
         else:
             raise Exception("right-hand site must be a MatrixProductState")
@@ -187,7 +187,6 @@ class MatrixProductState:
         mp.sites_number = len(sites)
 
         mp.decomposed = True
-        mp.decomposed = True
         mp.orthonormalized = orthogonality
         
         mp.parameters_number = np.sum([np.prod(site.shape) for site in sites])
@@ -210,6 +209,19 @@ class MatrixProductState:
     def empty():
         return MatrixProductState()
 
+    @staticmethod
+    def zeros(input_shape, bond_shape):
+        n = len(input_shape)
+
+        shape = [(1, input_shape[0],bond_shape[0])]
+        shape += [(bond_shape[i-1], input_shape[i], bond_shape[i]) for i in range(1, n-1)]
+        shape += [(bond_shape[n-2], input_shape[n-1], 1)]
+
+        print(shape)
+        sites = []
+        for idx in range(n):
+            sites.append(np.zeros(shape=shape[idx]))
+        return MatrixProductState.from_sites(sites)
     
     """norm method of MatrixProductState
     Compute the norm of the MatrixProductState
@@ -244,32 +256,29 @@ class MatrixProductState:
     def decompose(self, mode="left"):
         if not self.decomposed:
             if mode == "left":
-                current_matrix = self.tensor
-                current_shape = self.shape[0][1]
-                current_rank = 1
 
+                n = self.sites_number-1
+                T = self.tensor
+
+                
                 for k in range(self.sites_number-1):
                     
-                    unfolding_matrix = np.reshape(current_matrix, newshape=(current_shape*current_rank, -1))
-                    rank = self.shape[k][2]
+                    L = self.left_matricization(T, index=k)
                     
-                    Q, R = np.linalg.qr(unfolding_matrix, mode="complete")
-
+                    Q, R = np.linalg.qr(L, mode="complete")
+                    print(Q.shape, R.shape)
+                    rank = self.shape[k][2]
                     Q = Q[:,:rank]
-                    Q = np.reshape(Q, newshape=(current_rank, current_shape, -1))
                     R = R[:rank, :]
 
-                    if self.verbose: print(f"Core {k} with {current_rank} , {current_shape}")
+                    self.sites[k] = self.tensoricization(Q, k)
+                    T = R
 
-                    self.sites[k] = Q
+                    self.parameters_number += np.prod(self.sites[k].shape)
 
-                    current_shape = self.shape[k+1][1]
-                    current_rank = rank
-                    current_matrix = R
+                self.sites[-1] = self.tensoricization(T, n)
+                self.parameters_number += np.prod(self.sites[-1].shape)
 
-                current_matrix = current_matrix[:, :, np.newaxis]
-                self.sites[-1] = current_matrix
-                
                 del self.tensor
                 gc.collect()
 
@@ -352,7 +361,7 @@ class MatrixProductState:
         else:
             that = self.copy()
 
-            print(that)
+            # print(that)
 
             if mode == 'left':
                 # if self.orthonormalized != 'left': self.left_orthonormalization()
@@ -367,8 +376,8 @@ class MatrixProductState:
 
                     W = S @ R
                     
-                    print(Q.shape, L.shape, S.T.shape, R.shape)
-                    print(W.shape)
+                    # print(Q.shape, L.shape, S.T.shape, R.shape)
+                    # print(W.shape)
 
                     l1 = list(that.shape[k])
                     l2 = list(that.shape[k+1])
@@ -392,8 +401,7 @@ class MatrixProductState:
         for idx in range(self.sites_number):
             einsum_structure.append(self.sites[idx][:, indices[idx], :])
             einsum_structure.append([idx, Ellipsis, idx+1])
-
-        return np.einsum(*einsum_structure)
+        return contract(*einsum_structure)
 
     
     def left_orthonormalization(self, bond_shape=()):

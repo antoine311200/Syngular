@@ -246,7 +246,7 @@ def test_random():
     
     print("---------- MatrixProductOperator.random(input_shape, output_shape, bond_shape) ----------")
     start = time.time()
-    MatrixProductOperator.random((4,4,4), (2,2,2), (3,3,))
+    MatrixProductOperator.random((4,4,4), (2,2,2), (8,8,))
     end = time.time()
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
@@ -284,6 +284,7 @@ def test_to_tensor():
     tensor = np.arange((2*2*2*2*2*2*2*2)*(2*2*2*2*2*2*2*2)).reshape(2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2)
     mpo = MatrixProductOperator(tensor, bond_shape=(2,2,2,2,2,2,2,)).decompose()
     print(mpo)
+    print(mpo.real_parameters_number, mpo.parameters_number)
     print("---------- MatrixProductOperator.to_tensor() ----------")
     start = time.time()
     mpo.to_tensor()
@@ -293,14 +294,14 @@ def test_to_tensor():
 
 
 
-# test_decompose()
-# test_from_sites()
-# test_random()
-# test_to_tensor()
-# test_add()
+test_decompose()
+test_from_sites()
+test_random()
+# test_to_tensor() -- very expensive ~1min
+test_add()
 test_mul()
 test_matmul()
-# test_dot()
-# test_compress()
-# test_orthogonality()
-# test_apply()
+test_dot()
+test_compress()
+test_orthogonality()
+test_apply()
