@@ -5,13 +5,107 @@ import syngular.quantum.gate as gate
 import time
 
 import warnings
+
 warnings.filterwarnings('ignore')
 
-circ = Circuit(initializer="ground", size=2, structure=[
-    (gate.X, 0)
-])
 
-size = 1
+def test_circuit():
+    Qbit.LSB = False
+
+    circ = Circuit(size=30, structure=[
+        (gate.X, 0),
+        (gate.X, 2),
+        (gate.H, 0),
+        (gate.H, 2),
+    ])
+
+    circ.run()
+    circ.add((gate.H, 1))
+    circ.run()
+
+    print(circ.current_state)
+    # for state in circ.states:
+    #     print(state.to_tensor())
+
+# test_circuit()
+def test_swap():
+    qbit = Qbit(4)
+    print(qbit.to_binary())
+    qbit @= (gate.X, 0)
+    print(qbit.to_binary())
+
+    # qbit @= (gate.SWAP, 0)
+    # print(qbit.to_binary())
+    # qbit @= (gate.SWAP, 1)
+    # print(qbit.to_binary())
+    # qbit @= (gate.SWAP, 2)
+    # print(qbit.to_binary())
+    # qbit = qbit.swap_in(0,2)
+    # print(qbit.to_binary())
+    # qbit = qbit.swap_out(0,2)
+    # print(qbit.to_binary())
+
+    qbit @= (gate.X, 3)
+    print(qbit.to_binary())
+    qbit @= (gate.X, 2)
+    # qbit @= (gate.X, 1)
+    # qbit @= (gate.X, 2)
+    # qbit @= (gate.X, 3)
+    print(qbit.to_binary())
+    # print(qbit.to_tensor())
+
+    # qbit = qbit.swap_in(0, 3)
+    # print(qbit.to_tensor())
+
+    # print(",",qbit.to_binary())
+    # qbit = qbit.swap_out(0, 3)
+    qbit = qbit.swap(0,3)
+    # qbit @= (gate.CX, 0, 2)
+    print(qbit.to_binary())
+    qbit = qbit.swap(0,2)
+    print(qbit.to_binary())
+    qbit = qbit.swap(3,2)
+    print(qbit.to_binary())
+    qbit @= (gate.X, 3)
+    print(qbit.to_binary())
+    qbit = qbit.swap(1,2)
+    print(qbit.to_binary())
+
+    # qbit @= (gate.SWAP, 0)
+    # circ = Circuit(2)
+    # circ.add((gate.X, 0))
+    # circ.add((gate.SWAP, 0))
+test_swap()
+
+
+def test_bernstein_vazirani(size):
+    token = "11".zfill(size)[::-1]
+    print(token)
+
+    circ = Circuit(size=size)
+
+
+    for i in range(size):
+        circ.add((gate.H, i))
+
+    # circ.add(BlackBox())
+    for i in range(size):
+        if token[i] == '1':
+            print("ok", i)
+            circ.add((gate.CX, i))
+
+    for i in range(size):
+        circ.add((gate.H, i))
+
+    circ.run()
+
+    print(circ.current_state.state | Qbit(size).state)
+
+    print(circ.current_state.to_tensor())
+
+# for i in range(1):
+#     test_bernstein_vazirani(4)
+# size = 1
 
 # ground = Qbit(size)
 # print("> Ground state")
@@ -22,7 +116,7 @@ size = 1
 # print(terminal.to_tensor())
 
 
-def fourt_qbit():
+def four_qbit():
     size = 4
 
     ground = Qbit(size)
@@ -106,32 +200,31 @@ def three_qbit():
     qbit @= (gate.TOFFOLI, 0)
     print(qbit.to_binary())
 
-def verity_table(g):
-    print(g.shape, len(g.shape))
-    size = int(len(g.shape)**(1/2))
-    print(size)
+def verity_table(g, name):
+    # print(g.shape, len(g.shape))
+    size = int(len(g.shape) // 2)
+    # print(size)
     print('------------- Vertity Table --------------')
-    print(f' > Gate : X')
-    n = [range(c) for c in g.shape[:size]]
-    print(n)
+    print(f' > Gate : {name}')
+
+    print("="*((3+size)*2+1))
+    print("| inp > out |")
+    print("="*((3+size)*2+1))
     for b in itertools.product([0, 1], repeat=size):
         qbit = Qbit(size)
-        # print(b)
         for i in range(len(b)):
-        #     # print(i)
             if b[i] == 1:
-        #         # print("ok")
                 qbit @= (gate.X, i)
-        # print(qbit.to_tensor())
-        # print(qbit.to_binary())
         output = qbit @ (g, 0)
-        
-        print(qbit.to_binary(), ' > ', output.to_binary())
-        # print("".join(map(str,b)), ' > ', qbit.to_binary())
+        print("|",qbit.to_binary(), '|', output.to_binary(), "|")
+        print("-"*((3+size)*2+1))
+    # print("="*((3+size)*2+1))
 
 
 # three_qbit()
-verity_table(gate.CX)
+# verity_table(gate.X, "Not")
+# verity_table(gate.CX, "CNot")
+# verity_table(gate.TOFFOLI, "Toffoli")
 
 def timing():
     import pickle

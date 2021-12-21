@@ -431,11 +431,11 @@ class MatrixProductState:
             rank = that.shape[k][2]
             Q = Q[:,:rank]
             R = R[:rank, :]
-            # print(k, 'L', L.shape, 'Q', Q.shape, 'R', R.shape)
+            # print(k, m+k, 'L', L.shape, 'Q', Q.shape, 'R', R.shape)
             # print(that.sites[k].shape)
             # print(m+k, operator.shape[m+k], rank)
             that.sites[k] = that.tensoricization(Q, k)
-            T = R.reshape((rank, operator.shape[m+k], -1))
+            T = R.reshape((rank, operator.shape[m+k-1], -1))
             # print('Tr', T.shape)
         
         # print(that.sites[m+index-1])
