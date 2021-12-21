@@ -185,7 +185,7 @@ class MatrixProductState:
     @staticmethod
     def from_sites(sites: List[np.ndarray], orthogonality=None, real_parameters_number=None):
         mp = MatrixProductState()
-        mp.sites = sites
+        mp.sites = sites.copy()
         mp.sites_number = len(sites)
         # mp.order = len()
 
@@ -410,7 +410,7 @@ class MatrixProductState:
         # index = n-1-index
 
         struct = []
-        struct += [operator, [*list(range(2*n+index, 2*n+m+index)), *list(range(3*n+index, 3*n+m+index))]]
+        struct += [operator, [*list(range(3*n+index, 3*n+m+index)), *list(range(2*n+index, 2*n+m+index))]]
         for idx in range(index, m+index):
             struct += [that.sites[idx], [idx, 2*n+idx, idx+1]]
         struct += [[index, *list(range(3*n+index, 3*n+m+index)), m+index]]
@@ -421,20 +421,22 @@ class MatrixProductState:
 
         # print(index, m, m+index-1, list(range(index, m+index-1)))
         for k in range(index, m+index-1):
-            print("K", k)
+            # print("K", k)
             lrank = T.shape[0]
             input_shape = T.shape[1]
 
             L = T.reshape(input_shape*lrank, -1)
-
+            
             Q, R = np.linalg.qr(L, mode="complete")
-            # print(Q.shape, R.shape)
             rank = that.shape[k][2]
             Q = Q[:,:rank]
             R = R[:rank, :]
-
+            # print(k, 'L', L.shape, 'Q', Q.shape, 'R', R.shape)
+            # print(that.sites[k].shape)
+            # print(m+k, operator.shape[m+k], rank)
             that.sites[k] = that.tensoricization(Q, k)
-            T = R
+            T = R.reshape((rank, operator.shape[m+k], -1))
+            # print('Tr', T.shape)
         
         # print(that.sites[m+index-1])
         # print('---')

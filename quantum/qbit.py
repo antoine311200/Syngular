@@ -10,6 +10,9 @@ import numpy as np
 
 class Qbit:
 
+    VERBOSE = 0
+    LSB = True
+
     def __init__(self, size, init=True):
         self.size = size
         self.dim = 2**self.size
@@ -25,11 +28,16 @@ class Qbit:
             self.state.sites[-1][0][0] = 1.
 
     def __matmul__(self, operator: Union[Tuple, Union[List, MatrixProductOperator]]):
+        if Qbit.VERBOSE: print(self.to_tensor().astype(float))
+        
         if isinstance(operator, tuple):
             return Qbit.from_mps(self.state.apply(*operator))
         else:
             operator = MatrixProductOperator(operator, bond_shape=()).decompose()
             return Qbit.from_mps(operator @ self.state)
+
+    def __imatmul__(self, operator: Union[Tuple, Union[List, MatrixProductOperator]]):
+        return self @ operator
 
     def apply(self, gate):
         gate = MatrixProductOperator(gate, bond_shape=()).decompose()
@@ -50,7 +58,10 @@ class Qbit:
         #     value = self.state[(0,) * pos + (1,) + (0,) * (self.size-pos-1)]
             # print((0,) * pos + (1,) + (0,) * (self.size-pos-1))
             # print(value)
-        return bin(np.where(tensor == 1)[0][0])[2:].zfill(self.size)
+        if Qbit.LSB:
+            return bin(np.where(tensor == 1)[0][0])[2:].zfill(self.size)[::-1]
+        else:
+            return bin(np.where(tensor == 1)[0][0])[2:].zfill(self.size)
 
     def from_mps(mps):
         # print(mps.sites_number)
