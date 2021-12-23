@@ -281,6 +281,22 @@ class MatrixProductOperator:
     def empty():
         return MatrixProductOperator()
 
+    @staticmethod
+    def zeros(input_shape, output_shape, bond_shape):
+        n = len(input_shape)
+
+        if bond_shape != ():
+            shape = [(1, input_shape[0], output_shape[0], bond_shape[0])]
+            shape += [(bond_shape[i-1], input_shape[i], output_shape[i], bond_shape[i]) for i in range(1, n-1)]
+            shape += [(bond_shape[n-2], input_shape[n-1], output_shape[n-1], 1)]
+        else:
+            shape = [(1, input_shape[0], output_shape[0], 1)]
+        # print(shape)
+        sites = []
+        for idx in range(n):
+            sites.append(np.zeros(shape=shape[idx]))
+        return MatrixProductOperator.from_sites(sites)
+
     def copy(self):
         return MatrixProductOperator.from_sites(self.sites)
 
