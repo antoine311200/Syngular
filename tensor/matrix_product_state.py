@@ -300,6 +300,10 @@ class MatrixProductState:
     def compress(self, dim: int, mode="left", strict=False):
         n = self.sites_number-1
         parameters_number = 0
+        
+        print(dim, min(self.bond_shape), self.bond_shape)
+        if dim >= min(self.bond_shape):
+            return self
 
         if not strict:
             if mode == 'left':
@@ -408,6 +412,7 @@ class MatrixProductState:
         n = that.sites_number
 
         # index = n-1-index
+        # print(">",n, m, index)
 
         struct = []
         struct += [operator, [*list(range(3*n+index, 3*n+m+index)), *list(range(2*n+index, 2*n+m+index))]]
@@ -418,6 +423,7 @@ class MatrixProductState:
 
         T = contract(*struct)
         # print('T', T.shape)
+        # print('op', operator.shape)
 
         # print(index, m, m+index-1, list(range(index, m+index-1)))
         for k in range(index, m+index-1):
@@ -433,15 +439,16 @@ class MatrixProductState:
             R = R[:rank, :]
             # print(k, m+k, 'L', L.shape, 'Q', Q.shape, 'R', R.shape)
             # print(that.sites[k].shape)
-            # print(m+k, operator.shape[m+k], rank)
+            # print(m+k-1, operator.shape, rank)
             that.sites[k] = that.tensoricization(Q, k)
-            T = R.reshape((rank, operator.shape[m+k-1], -1))
+            T = R.reshape((rank, -1, that.shape[k+1][2]))
             # print('Tr', T.shape)
         
         # print(that.sites[m+index-1])
         # print('---')
         # print(T)
         # print(that.sites[m+index-1].shape)
+        # print(m+index-1)
         that.sites[m+index-1] = that.tensoricization(T, m+index-1)
         # print(that.sites[m+index-1].shape)
         
@@ -532,3 +539,6 @@ class MatrixProductState:
     def right_orthogonality(self, index):
         R = self.right_matricization(self.sites[index], index)
         return R @ R.T
+
+    def grad(self, index):
+        return self.sites[:index]+self.sites[index+2:]

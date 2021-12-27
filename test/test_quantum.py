@@ -75,34 +75,118 @@ def test_swap():
     # circ = Circuit(2)
     # circ.add((gate.X, 0))
     # circ.add((gate.SWAP, 0))
-test_swap()
+# test_swap()
 
 
-def test_bernstein_vazirani(size):
-    token = "11".zfill(size)[::-1]
-    print(token)
+def test_bernstein_vazirani(token):
+    size = len(token)
+    # token = token.zfill(size)[::-1]
+    # print(token)
 
-    circ = Circuit(size=size)
+    circ = Circuit(size=size+1)
+    circ.add((gate.H, size))
+    circ.add((gate.Z, size))
 
 
     for i in range(size):
         circ.add((gate.H, i))
-
+    # circ.add((gate.X, 0))
+    # circ.add((gate.CX, size, 0))
     # circ.add(BlackBox())
     for i in range(size):
         if token[i] == '1':
             print("ok", i)
-            circ.add((gate.CX, i))
+            circ.add((gate.CX, size, i))
 
     for i in range(size):
         circ.add((gate.H, i))
 
-    circ.run()
-
-    print(circ.current_state.state | Qbit(size).state)
+    # circ.run()
+    for stp in range(len(circ.structure)):
+        print('------------ step -------------')
+        print(circ.current_state.to_tensor())
+        circ.step()
 
     print(circ.current_state.to_tensor())
+    # print("ok")
 
+    import numpy as np
+    print(np.argmax(circ.current_state.to_tensor()))
+
+
+    # qbit_token = Qbit.from_binary(token)
+    # print(circ.current_state.state | Qbit(size).state)
+    # print(circ.current_state.state | qbit_token.state)
+
+
+# test_bernstein_vazirani("11")
+
+def test_hadamard(token):
+
+    token = token[::-1]
+    size  = len(token)
+
+    qbit = Qbit(size+1)
+
+    qbit @= (gate.H, size)
+    qbit @= (gate.Z, size)
+
+    for i in range(size): qbit @= (gate.H, i)
+
+    for i in range(len(token)):
+        if token[i] == "1": qbit @= (gate.CX, 2, i)
+        else: qbit @= (gate.I, i)
+    
+    for i in range(size): qbit @= (gate.H, i)
+
+    print(qbit.to_tensor())
+
+    import numpy as np
+    print(np.argmax(qbit.to_tensor()))
+    print("Probability : ")
+    print(
+        (qbit.state | Qbit.from_binary(token[::-1]+"1").state)**2  + 
+        (qbit.state | Qbit.from_binary(token[::-1]+"0").state)**2
+    )
+
+
+# test_hadamard("111")
+
+def test_bell_state():
+    start = time.time()
+    qbit = Qbit(2)
+    qbit @= (gate.H, 0)
+    qbit @= (gate.CX, 0, 1) ## Control 1-th qbit with 0-th qbit 
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+
+    print(qbit.to_tensor())
+
+# test_bell_state()
+
+def test_hzh_x():
+    qbit = Qbit(1)
+    qbit @= gate.X
+    print(qbit.to_tensor())
+
+    qbit = Qbit(1)
+    qbit @= gate.H @ gate.Z @ gate.H
+    print(qbit.to_tensor())
+
+def test_ss_z():
+    qbit = Qbit(1)
+    qbit @= gate.X
+    qbit @= gate.Z
+    print(qbit.to_tensor())
+
+    qbit = Qbit(1)
+    qbit @= gate.X
+    qbit @= gate.S @ gate.S
+    print(qbit.to_tensor())
+
+
+test_hzh_x()
+test_ss_z()
 # for i in range(1):
 #     test_bernstein_vazirani(4)
 # size = 1

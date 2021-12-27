@@ -31,6 +31,11 @@ T = np.array([
     [0., np.exp(1.j*np.pi/4)]
 ])
 
+S = np.array([
+    [1., 0.],
+    [0., np.exp(1.j*np.pi/2)]
+])
+
 CX = np.array([
     [1., 0., 0., 0.],
     [0., 1., 0., 0.],

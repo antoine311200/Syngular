@@ -34,13 +34,29 @@ class Qbit:
             if len(operator) == 2:
                 return Qbit.from_mps(self.state.apply(*operator))
             else:
-                qbit = self.swap_in(operator[1], operator[2]-2)
-                print('->', qbit.to_binary())
-                op = (operator[0], operator[2]-1)
-                print(op[1])
+                # print('->', self.to_binary())
+
+                min_index = min(operator[1], operator[2])
+                max_index = max(operator[1], operator[2])
+
+                qbit = self
+                if abs(min_index - max_index) != 1:
+                    qbit = self.swap_in(min_index,max_index-1)
+                    # print("swap in OKAY")
+                    # print('->', qbit.to_binary())
+                    # print("idx", op[1])
+                    print(min_index, operator[1], operator[2])
+                    if min_index != operator[1]:
+                        qbit @= (gate.SWAP, max_index-1)
+                
+                op = (operator[0], max_index-1)
                 qbit = Qbit.from_mps(qbit.state.apply(*op))
-                print('->', qbit.to_binary())
-                qbit = qbit.swap_out(operator[1], operator[2]-2)
+                # print("gate applied OKAY")
+                # print('->', qbit.to_binary())
+                if abs(min_index - max_index) != 1:
+                    qbit = qbit.swap_out(min_index, max_index-1)
+                # print("swap out OKAY")
+                # print('->', qbit.to_binary())
                 return qbit
         else:
             operator = MatrixProductOperator(operator, bond_shape=()).decompose()
@@ -76,10 +92,12 @@ class Qbit:
         _idx1 = min(idx1, idx2)
         _idx2 = max(idx1, idx2)
 
+        # print(list(range(_idx2, _idx1-1, -1)))
+
         # self @= (gate.SWAP, _idx2)
         # print("ok", self.to_binary())
         # print(list(range(_idx2, _idx1-1, -1)))
-        for i in range(_idx2-2, _idx1-1, -1):
+        for i in range(_idx2, _idx1-1, -1):
             # print(i)
             # print(self.to_binary())
             self @= (gate.SWAP, i)
@@ -116,4 +134,16 @@ class Qbit:
         # print(mps.sites_number)
         qbit = Qbit(mps.sites_number, init=False)
         qbit.state = mps
+        return qbit
+    
+    @staticmethod
+    def from_binary(bin):
+        size = len(bin)
+        
+        qbit = Qbit(size)
+
+        for i in range(size): 
+            if bin[i] == '1': 
+                qbit @= (gate.X, i)
+        
         return qbit

@@ -15,6 +15,9 @@ from syngular.tensor.matrix_product_state import MatrixProductState
 
 class MatrixProductOperator:
 
+    COMPRESS = True
+    DECOMPOSE = False
+
     def __init__(self, tensor=None, bond_shape: Union[Union[Tuple, List], np.ndarray]=(), verbose=0) -> None:
         
         self.parameters_number = 0
@@ -69,7 +72,11 @@ class MatrixProductOperator:
     @returns: a float representing the sum of the two MatrixProductOperator
     """
     def __add__(self, mpo):
-        print(mpo)
+        # print(mpo)
+        min_bond = min(min(self.bond_shape), min(mpo.bond_shape))
+        print("min", min_bond, self.bond_shape, mpo.bond_shape)
+        print(min_bond)
+
         if self.decomposed and mpo.decomposed:
             sites = []
             for idx in range(self.sites_number):
@@ -96,7 +103,7 @@ class MatrixProductOperator:
 
                 sites.append(site)
             
-            return MatrixProductOperator.from_sites(sites)
+            return MatrixProductOperator.from_sites(sites) >> min_bond
         else:
             raise Exception("Both Matrix Product Operator must be in canonical form (use .decompose()")
 
@@ -113,7 +120,9 @@ class MatrixProductOperator:
     @returns: a float representing the sum of the two MatrixProductOperator
     """
     def __mul__(self, mp: Union[MatrixProductOperator, MatrixProductState]):
-        print(mp)
+        # print(mp)
+        min_bond = min(min(self.bond_shape), min(mp.bond_shape))
+        print("min", min_bond, self.bond_shape, mp.bond_shape)
         if not self.decomposed and mp.decomposed:
             raise Exception("Both Matrix Product Operator must be in canonical form (use .decompose()")
 
@@ -140,7 +149,7 @@ class MatrixProductOperator:
             
                 sites.append(site)
             
-            return MatrixProductOperator.from_sites(sites)
+            return MatrixProductOperator.from_sites(sites) >> min_bond
 
         elif isinstance(mp, MatrixProductState):
             pass
@@ -160,6 +169,9 @@ class MatrixProductOperator:
     @returns: a float representing the contraction of the two MatrixProduct
     """
     def __matmul__(self, mp: Union[MatrixProductOperator, MatrixProductState]):
+        min_bond = min(min(self.bond_shape), min(mp.bond_shape))
+        max_bond = max(max(self.bond_shape), max(mp.bond_shape))
+        print("min", min_bond)
         sites = []
 
         if isinstance(mp, MatrixProductState):
@@ -172,7 +184,7 @@ class MatrixProductOperator:
                     self.shape[idx][3]*mp.shape[idx][2]
                 ))
                 sites.append(site)
-            return MatrixProductState.from_sites(sites)
+            return MatrixProductState.from_sites(sites) >> min_bond
         elif isinstance(mp, MatrixProductOperator):
             for idx in range(self.sites_number):
                 site = contract(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,3,6,7], [1,5,2,6,4,7])
@@ -184,7 +196,7 @@ class MatrixProductOperator:
                     self.shape[idx][3]*mp.shape[idx][3]
                 ))
                 sites.append(site)
-            return MatrixProductOperator.from_sites(sites)
+            return MatrixProductOperator.from_sites(sites) >> min_bond
 
     def __mod__(self, mode):
         if mode == 'L' or mode == 'left' or mode == 'l' or mode == 'left-canonical':
@@ -366,6 +378,13 @@ class MatrixProductOperator:
         n = self.sites_number-1
         parameters_number = 0
 
+        if dim >= min(self.bond_shape):
+            return self
+
+        print(self.bond_shape)
+        self.bond_shape = (dim,) * (self.sites_number-1)
+        print(self.bond_shape)
+        
         if not strict:
             if mode == 'left':
                 if self.orthonormalized != 'left': self.left_orthonormalization()
@@ -381,8 +400,8 @@ class MatrixProductOperator:
 
                     W = S @ R
                     
-                    print(Q.shape, L.shape, S.T.shape, R.shape)
-                    print(W.shape)
+                    # print(Q.shape, L.shape, S.T.shape, R.shape)
+                    # print(W.shape)
 
                     l1 = list(self.shape[k])
                     l2 = list(self.shape[k+1])
@@ -433,7 +452,7 @@ class MatrixProductOperator:
         else:
             that = self.copy()
 
-            print(that)
+            # print(that)
 
             if mode == 'left':
                 # if self.orthonormalized != 'left': self.left_orthonormalization()
@@ -448,8 +467,8 @@ class MatrixProductOperator:
 
                     W = S @ R
                     
-                    print(Q.shape, L.shape, S.T.shape, R.shape)
-                    print(W.shape)
+                    # print(Q.shape, L.shape, S.T.shape, R.shape)
+                    # print(W.shape)
 
                     l1 = list(that.shape[k])
                     l2 = list(that.shape[k+1])
@@ -534,7 +553,7 @@ class MatrixProductOperator:
                 # struct += output_shape
                 # print(struct)
                 T = contract(*struct)
-                print(T.shape)
+                # print(T.shape)
 
         else:
             raise Exception("MatrixProductState not decomposed")
@@ -555,7 +574,7 @@ class MatrixProductOperator:
     
     def left_orthonormalization(self, bond_shape=()):
         for k in range(self.sites_number-1):
-            print(k, k+1)
+            # print(k, k+1)
             L = self.left_site_matricization(k)
             R = self.right_site_matricization(k+1)
 

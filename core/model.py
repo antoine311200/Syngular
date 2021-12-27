@@ -1,4 +1,5 @@
-from syngular.tensor import MatrixProductOperator, MatrixProductState
+from numpy.matrixlib.defmatrix import matrix
+from syngular.tensor import MatrixProductOperator, MatrixProductState, matrix_product_operator
 
 import numpy as np
 from opt_einsum import contract
@@ -22,8 +23,16 @@ class Model:
                 layer.build(None)
                 layer.is_built = True
 
-    def train(self):
-        pass
+    def train(self, x, y, batchsize=32, epochs=1, verbose=1):
+        if verbose: print("[START] Training ")
+        for e in range(epochs):
+            if verbose: print(f"Epoch {str(e+1)} : ")
+            for layer in self.layers:
+                for weight in layer.trainable_tensor_weights:
+                    # print(weight)
+                    weight["weight"] += MatrixProductOperator.random((2,2), (2,2), (4,))
+                    print(weight["weight"])
+        if verbose: print("[END] Training ")
 
     def draw(self):
         repr = ''
@@ -62,17 +71,19 @@ class Layer:
         return repr
             
 
-    def add_weight(self, input_shape, output_shape, bond, name=None, initializer="normal"):
+    def add_weight(self, input_shape, output_shape, bond_shape, name=None, initializer="normal"):
         if name == None:
             name = f'weight_{np.random.randint(0,999999)}'
 
-        if initializer == "normal":
-            weight = np.random.normal(size=(*self._input_shape, *self._output_shape))
-        else:
-            weight = np.zeros(shape=(*self._input_shape, *self._output_shape))
+        # if initializer == "normal":
+        #     weight = np.random.normal(size=(*self._input_shape, *self._output_shape))
+        # else:
+        #     weight = np.zeros(shape=(*self._input_shape, *self._output_shape))
 
-        matrix_product_weight = MatrixProductOperator(weight, bond_shape=bond)
-        matrix_product_weight.decompose()
+        # matrix_product_weight = MatrixProductOperator(weight, bond_shape=bond)
+        # matrix_product_weight.decompose()
+
+        matrix_product_weight = MatrixProductOperator.random(input_shape, output_shape, bond_shape)
 
         self.trainable_tensor_weights.append({'name': name, 'weight': matrix_product_weight})
     
@@ -122,18 +133,23 @@ class Linear(Layer):
     def build(self, input_shape):
         # self.add_bias(self._output_shape, name="bias", initializer="normal")
         # print(self._input_shape, self._output_shape)
-        self.add_weight(self._input_shape, self._output_shape, bond=self._bond_shape, name="weight", initializer="normal")
+        if self.weights_initializer == "normal":
+            self.add_weight(self._input_shape, self._output_shape, bond_shape=self._bond_shape, name="weight", initializer="normal")
+        else:
+            self.trainable_tensor_weights.append({'name': '', 'weight': self.weights_initializer})
 
     def __call__(self, inputs):
         super(Linear, self).__call__(inputs)
-
+        print("okokokok")
         weight = self.trainable_tensor_weights[0]["weight"]
 
         print("Weight", weight)
         print("input", inputs)
-        print("contract", MatrixProductOperator.contract(weight, inputs))
-
-        return MatrixProductOperator.contract(weight, inputs)
+        print([site.shape for site in weight.sites], weight.bond_shape)
+        print([site.shape for site in inputs.sites], inputs.bond_shape)
+        print("contract", weight @ inputs)
+        # print(inputs, weight, weight @ inputs)
+        return weight @ inputs
 
 class Output(Layer):
 
