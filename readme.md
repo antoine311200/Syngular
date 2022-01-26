@@ -13,11 +13,11 @@
 
 ## Introduction
 
-**Syngular** emerged in ther context of my quantum computing project at CentraleSuépelec. I was working on the efficient simulation of quantum circuit on classical computers. The last work on the subject that tackled this issue were using Matrix Product State as a base to represent the 2^N parameters quantum state of a quantum system (_What limits the simulation of quantum computers?_ Yiqing Zhou, E. Miles Stoudenmire, Xavier Waintal) with only a fraction of parameters at the price of approximation on the syngular values.
-I dived into this world of Matrix Product State and Operator leading me to the theorisation of Tensor Network with Yvan Osedelets works and created a simple simulator (too simple). 
-Then, on my second year at CentraleSupélec in the same team project I had the opportunity to work on how to use tensor network that came from the quantum world to machine learning as to compress efficiently neural network.
+**Syngular** emerged in the context of my quantum computing project at CentraleSuépelec. I was working on the efficient simulation of quantum circuits on classical computers. The last work on the subject that tackled this issue was using Matrix Product State as a base to represent the 2^N parameters quantum state of a quantum system (_What limits the simulation of quantum computers?_ Yiqing Zhou, E. Miles Stoudenmire, Xavier Waintal) with only a fraction of parameters at the price of approximation on the singular values. 
+I dived into this world of Matrix Product State and Operator leading me to the theorisation of Tensor Network with Yvan Osedelets works and I created a simple simulator (too simple). Then, in my second year at CentraleSupélec in the same team project, I had the opportunity to work on how to use tensor networks that came from the quantum world to machine learning as to compress efficiently neural network.
 
-As so, I developped this Python package to create easily Tensor Network and simulate as well **Quantum Circuit** as **Neural Network** and optimization of function.
+As so, I developed this Python package to create easily Tensor Network and simulate as well **Quantum Circuit** as **Neural Networks** and optimization of function.
+
 
 <br>
 
