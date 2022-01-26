@@ -271,7 +271,7 @@ class MatrixProductState:
                     L = self.left_matricization(T, index=k)
                     
                     Q, R = np.linalg.qr(L, mode="complete")
-                    print(Q.shape, R.shape)
+                    # print(Q.shape, R.shape)
                     rank = self.shape[k][2]
                     Q = Q[:,:rank]
                     R = R[:rank, :]
@@ -301,7 +301,7 @@ class MatrixProductState:
         n = self.sites_number-1
         parameters_number = 0
         
-        print(dim, min(self.bond_shape), self.bond_shape)
+        # print(dim, min(self.bond_shape), self.bond_shape)
         if dim >= min(self.bond_shape):
             return self
 
@@ -320,8 +320,8 @@ class MatrixProductState:
 
                     W = S @ R
                     
-                    print(Q.shape, L.shape, S.T.shape, R.shape)
-                    print(W.shape)
+                    # print(Q.shape, L.shape, S.T.shape, R.shape)
+                    # print(W.shape)
 
                     l1 = list(self.shape[k])
                     l2 = list(self.shape[k+1])

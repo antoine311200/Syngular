@@ -74,8 +74,8 @@ class MatrixProductOperator:
     def __add__(self, mpo):
         # print(mpo)
         min_bond = min(min(self.bond_shape), min(mpo.bond_shape))
-        print("min", min_bond, self.bond_shape, mpo.bond_shape)
-        print(min_bond)
+        # print("min", min_bond, self.bond_shape, mpo.bond_shape)
+        # print(min_bond)
 
         if self.decomposed and mpo.decomposed:
             sites = []
@@ -122,7 +122,7 @@ class MatrixProductOperator:
     def __mul__(self, mp: Union[MatrixProductOperator, MatrixProductState]):
         # print(mp)
         min_bond = min(min(self.bond_shape), min(mp.bond_shape))
-        print("min", min_bond, self.bond_shape, mp.bond_shape)
+        # print("min", min_bond, self.bond_shape, mp.bond_shape)
         if not self.decomposed and mp.decomposed:
             raise Exception("Both Matrix Product Operator must be in canonical form (use .decompose()")
 
@@ -171,7 +171,7 @@ class MatrixProductOperator:
     def __matmul__(self, mp: Union[MatrixProductOperator, MatrixProductState]):
         min_bond = min(min(self.bond_shape), min(mp.bond_shape))
         max_bond = max(max(self.bond_shape), max(mp.bond_shape))
-        print("min", min_bond)
+        # print("min", min_bond)f
         sites = []
 
         if isinstance(mp, MatrixProductState):
@@ -320,7 +320,7 @@ class MatrixProductOperator:
         
         for inp in itertools.product(*range_inp):
             for out in itertools.product(*range_out):
-                print(inp, out)
+                # print(inp, out)
                 tensor[(*inp, *out)] = self[inp, out]
         
         return tensor
@@ -381,9 +381,9 @@ class MatrixProductOperator:
         if dim >= min(self.bond_shape):
             return self
 
-        print(self.bond_shape)
+        # print(self.bond_shape)
         self.bond_shape = (dim,) * (self.sites_number-1)
-        print(self.bond_shape)
+        # print(self.bond_shape)
         
         if not strict:
             if mode == 'left':

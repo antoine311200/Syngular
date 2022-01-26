@@ -119,7 +119,7 @@ def test_bernstein_vazirani(token):
     # print(circ.current_state.state | qbit_token.state)
 
 
-# test_bernstein_vazirani("11")
+test_bernstein_vazirani("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111")
 
 def test_hadamard(token):
 
