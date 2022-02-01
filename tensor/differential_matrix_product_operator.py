@@ -26,6 +26,56 @@ class DifferentialMatrixProductOperator(MatrixProductOperator):
 
         return crumbled_site
 
+
+    """project method of DifferentialMatrixProductOperator
+    Project the wings based on a specified merged site
+
+    Mathematically, we aim at differentiating Y = WX with W a MatrixProductOperator and X an MatrixProductState
+    with respect to a merge site M at index k:
+        Y = WX = M(b_k, i_k, i_k+1, o_k, o_k+1, b_k+1) Z(_, _, o_1, b_k, b_k+1, o_2, _, _)
+        dY/dM = Z
+
+            |   |   |   |        |   |         |   |   |   |
+        ---O---O---O---O---   ---O---O---   ---O---O---O---O---
+            |   |   |   |        |   |         |   |   |   |
+        ---O---O---O---O---   ---O---O---   ---O---O---O---O---
+
+        => 
+             |                        |
+        ---[  ]---     |   |     ---[  ]---
+        ---[  ]--------O---O--------[  ]---
+
+        +
+                       |   |
+                  ---[      ]--- (6 dimensions)
+                      |   |
+
+        =>
+           ||  |   |   ||
+        ---O---O---O---O---     (8 dimensions)
+
+        => (merge output and bond on wings)
+           |   |   |   |
+        ---O---O---O---O---     (8 dimensions)
+
+
+        (Generalized Product State (not implemented yet!) of shape :
+            [1, (o_1, b_k), bi_1]
+            [bi_1, o_k, bi_k]
+            [bi_k, o_k, bi_k+1]
+            [bi_k+1, (o_2, b_k+1), 1]
+        )
+
+
+    @type index: int
+    @param index: the index of the site n°index to merge with n°index+1
+
+    @type state: MatrixProductState
+    @param state: an input matrix product state to project with the sites
+
+    @rtype: Mapping[str, np.ndarray]
+    @returns: a dictionary containing the left/right wings, left/right centers and the merged sites
+    """
     def project(self, index, state):
         
         if not isinstance(state, MatrixProductState):
