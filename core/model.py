@@ -17,6 +17,13 @@ class Model:
 
         return values
 
+    def feed_forward(self, sample):
+        values = sample
+        for layer in self.layers:
+            values = layer(values)
+        return values
+
+
     def build(self):
         for layer in self.layers:
             if not layer.is_built:

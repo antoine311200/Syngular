@@ -5,222 +5,53 @@ from syngular.tensor import MatrixProductState, MatrixProductOperator
 
 import numpy as np
 
-w = np.arange(4**6).reshape(4,4,4,4,4,4).astype('float64') / 1.6e5
-W = MatrixProductOperator(w, bond_shape=(4,4,))
-W.decompose()
+# w = np.arange(2**6).reshape(2,2,2,2,2,2).astype('float64')
+# W = MatrixProductOperator(w, bond_shape=(2,2,))
+# W.decompose()
 
-model = Model([
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    Linear(4**3,4**3,core=3, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,4,core=4, bond=4, weights_initializer=W),
-    # Linear(4,8,core=4,bond=4),
-    Output((4**3,))
-])
-model.build()
+def simple_model():
 
-print("---")
-print(model.draw())
-print("---")
-print("\n")
-print(model.describe())
+    core = 2
+    input_dim = 2
+    output_dim = 2
+    bond_dim = 2
 
-x = np.arange(4**3).reshape(4,4,4)
-X = MatrixProductState(x, bond_shape=(4,4,)).decompose()
+    input_size = input_dim**core
+    output_size = 2**core
 
-y = model.predict(X)
-print(y)
+    input_shape = (input_dim,) * core
+    output_shape = (output_dim,) * core
+    bond_shape = (bond_dim,) * (core-1)
 
-w_ = w.reshape((4**3,4**3))
-print(x.reshape((4**3,)) @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_ @ w_)
+    model = Model([
+        Linear(input_size, output_size, core=core, bond=bond_dim),
+        Linear(input_size, output_size, core=core, bond=bond_dim),
+        Output((output_size, ))
+    ])
+    model.build()
+
+    print(model.describe())
+
+
+    x = np.arange(input_size).reshape(input_shape)
+    X = MatrixProductState(x, bond_shape=bond_shape).decompose()
+
+    y = model.predict(X)
+    print("Prediction", y)
+    print('\n')
+
+    train_df = [X]
+
+    for epoch in range(5):
+        print(f"Epoch {str(epoch+1)} : ")
+
+        for sample in train_df:
+            model.feed_forward(sample)
+        # for layer in model.layers:
+        #     for weight in layer.trainable_tensor_weights:
+        #         weight["weight"] += MatrixProductOperator.random(input_shape, output_shape, bond_shape)
+        y = model.predict(X)
+        print("Prediction", y)
+
+
+simple_model()
