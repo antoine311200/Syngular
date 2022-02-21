@@ -1,6 +1,6 @@
-from numpy import outer
 from syngular.variational import DMRG
 from syngular.tensor import MatrixProductOperator
+from syngular.variational import Lanczos
 
 if __name__ == "__main__":
 
@@ -10,4 +10,4 @@ if __name__ == "__main__":
 
     mpo = MatrixProductOperator.random(input_shape=input_shape, output_shape=output_shape, bond_shape=bond_shape)
 
-    DMRG.solve(mpo)
+    DMRG.solve(mpo, optimizer=Lanczos)
