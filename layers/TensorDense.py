@@ -42,10 +42,6 @@ class TensorDense(Layer):
 
             self.tt_input_shape = tuple([roots] * self.cores_number)
 
-            #print("reshaped", tt_input_shape)
-
-        #print("Input shape", self.tt_input_shape)
-
         self.bias = tf.Variable(tf.zeros(shape=self.tt_output_shape), name="bias", trainable=True)
         
         last_idx = self.cores_number-1        
