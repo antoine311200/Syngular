@@ -30,18 +30,22 @@ class DMRG:
         print([r.shape for r in right_blocks if r is not None])
         print([r.shape for r in left_blocks if r is not None])
 
-        # Right sweep
 
         print('[DMRG] Right sweep')
-
         DMRG.__right_sweep(
             operator=operator, state=state, 
             left_blocks=left_blocks, right_blocks=right_blocks, 
             optimizer=optimizer
         )
 
-        # Left sweep
+        print('[DMRG] Left sweep')
+        DMRG.__left_sweep(
+            operator=operator, state=state, 
+            left_blocks=left_blocks, right_blocks=right_blocks, 
+            optimizer=optimizer
+        )
 
+        return state
 
     def __right_blocks(operator: MatrixProductOperator, state: MatrixProductState):
         n = operator.sites_number
@@ -150,8 +154,47 @@ class DMRG:
             # print("Shape end step", [site.shape for site in state.sites])
 
     
-    def __left_sweep(operator: MatrixProductOperator, state: MatrixProductState, left_blocks: list, optimizer: Type[Optimizer]):
-        pass
+    def __left_sweep(operator: MatrixProductOperator, state: MatrixProductState, left_blocks: list, right_blocks: list, optimizer: Type[Optimizer]):
+        n = operator.sites_number
+        
+        for k in range(n-2, -1, -1):
+            print(f"Step {n-1-k}/{n-1}")
+
+            merge = contract(state.sites[k], [1,2,3], state.sites[k+1], [3,4,5])
+
+            print(f"Merge site shape [idx {k}]", merge.shape)
+
+            if k == 0:
+                site = contract(
+                    merge, [1,2,3,4], 
+                    operator.sites[k], [5,2,7,6],
+                    operator.sites[k+1], [6,3,9,8],
+                    right_blocks[k+2], [10,8,4],
+                    [1, 7, 9, 10]
+                )
+            elif k == n-2:
+                site = contract(
+                    left_blocks[k-1], [10,5,1],
+                    merge, [1,2,3,4], 
+                    operator.sites[k], [5,2,7,6],
+                    operator.sites[k+1], [6,3,9,8],
+                    [10, 7, 9, 4]
+                )
+            else:
+                site = contract(
+                    left_blocks[k-1], [11,5,1],
+                    merge, [1,2,3,4], 
+                    operator.sites[k], [5,2,7,6],
+                    operator.sites[k+1], [6,3,9,8],
+                    right_blocks[k+2], [10,8,4],
+                    [11, 7, 9, 10]
+                )
+            
+            print(f"Contracted state shape [idx {k}]", merge.shape)
+
+            nsite = optimizer.fit(site)
+            state.sites[k], state.sites[k+1] = DMRG.__restore(state=state, site=nsite, index=k)
+
 
     def __restore(state: MatrixProductState, site: np.ndarray, index: int) -> tuple[np.ndarray]:
         
