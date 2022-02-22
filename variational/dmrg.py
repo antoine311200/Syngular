@@ -1,3 +1,4 @@
+from hashlib import new
 from syngular.tensor import MatrixProductOperator, MatrixProductState
 from syngular.variational.optimizer import Optimizer, Lanczos
 
@@ -111,6 +112,8 @@ class DMRG:
     '''
     def __right_sweep(operator: MatrixProductOperator, state: MatrixProductState, left_blocks: list, right_blocks: list, optimizer: Type[Optimizer]):
         n = operator.sites_number
+
+        init_vec = None
         
         for k in range(n-1):
             print(f"Step {k+1}/{n-1}")
@@ -146,9 +149,11 @@ class DMRG:
                     [11, 7, 9, 10]
                 )
             
-            print(f"Contracted state shape [idx {k}]", merge.shape)
+            print(f"Contracted state shape [idx {k}]", site.shape)
 
-            nsite = optimizer.fit(site)
+            _, nsite = optimizer.fit(site, init_vec=init_vec)
+            init_vec = nsite[0]
+            nsite = np.reshape(nsite, newshape=site.shape)
             state.sites[k], state.sites[k+1] = DMRG.__restore(state=state, site=nsite, index=k)
 
             # print("Shape end step", [site.shape for site in state.sites])
@@ -190,9 +195,11 @@ class DMRG:
                     [11, 7, 9, 10]
                 )
             
-            print(f"Contracted state shape [idx {k}]", merge.shape)
+            print(f"Contracted state shape [idx {k}]", site.shape)
 
-            nsite = optimizer.fit(site)
+            _, nsite = optimizer.fit(site)
+            print(nsite.shape, site.shape)
+            nsite = np.reshape(nsite, newshape=site.shape)
             state.sites[k], state.sites[k+1] = DMRG.__restore(state=state, site=nsite, index=k)
 
 

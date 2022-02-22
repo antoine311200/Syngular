@@ -30,6 +30,7 @@ def test_apply():
     print(W)
     X = Z @ W
     print(X[(1,1),(1,1)])
+    print((z * w)[1,1,1,1])
 
     Z.apply(W, [0,1])
 
@@ -292,16 +293,37 @@ def test_to_tensor():
     print(f"> Execution time : {end-start:.8f}sec")
     print("-------------------------------------------------------")
 
+def test_compare():
+    y = np.ones(2**4).reshape((4,4))
+    np.fill_diagonal(y, list(range(1,5)))
+    y = y.reshape((2,2,2,2))
+    Y = MatrixProductOperator(y, bond_shape=(2,)).decompose().right_orthonormalization()
+
+    print(y)
+
+    print(np.around(Y.to_tensor(), decimals=2))
+
+    print("---------- Compare with to_tensor() ----------")
+    start = time.time()
+    
+    diff = np.abs(y - Y.to_tensor())
+    print('Min', np.min(diff))
+    print('Max', np.max(diff))
+
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
 
 
-test_decompose()
-test_from_sites()
-test_random()
-# test_to_tensor() -- very expensive ~1min
-test_add()
-test_mul()
-test_matmul()
-test_dot()
-test_compress()
-test_orthogonality()
-test_apply()
+# test_decompose()
+# test_from_sites()
+# test_random()
+# # test_to_tensor() -- very expensive ~1min
+# test_add()
+# test_mul()
+# test_matmul()
+# test_dot()
+# test_compress()
+# test_orthogonality()
+# test_apply()
+test_compare()

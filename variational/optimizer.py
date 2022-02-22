@@ -10,19 +10,26 @@ class Optimizer:
 class Lanczos(Optimizer):
     
     @staticmethod
-    def fit(tensor, iteration=100):
+    def fit(tensor, init_vec = None, iteration=100, ):
         n = tensor.shape[0]*tensor.shape[1] if len(tensor.shape) > 2 else tensor.shape[0]
+        l = tensor.shape[2]*tensor.shape[3] if len(tensor.shape) > 2 else tensor.shape[1]
         m = min(n, iteration)
 
         A = np.reshape(tensor, newshape=(n, -1)) if len(tensor.shape) > 2 else tensor
-
         T = np.zeros((m, m))
-        V = np.zeros((m, n))
+        V = np.zeros((m, l))
+
+        if A.shape[0] != A.shape[1]:
+            A = np.dot(A.conj().T, A)
 
         # First iteration
 
-        v = np.random.rand(n)
-        v /= np.linalg.norm(v)
+
+        if init_vec is None:
+            v = np.random.rand(l)
+            v /= np.linalg.norm(v)
+        else:
+            v = init_vec[:l]
         V[0, :] = v
 
         w = np.dot(A, v)

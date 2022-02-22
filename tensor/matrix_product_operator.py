@@ -573,43 +573,52 @@ class MatrixProductOperator:
 
     
     def left_orthonormalization(self, bond_shape=()):
-        for k in range(self.sites_number-1):
-            # print(k, k+1)
-            L = self.left_site_matricization(k)
-            R = self.right_site_matricization(k+1)
+        if self.decomposed:
+            for k in range(self.sites_number-1):
+                # print(k, k+1)
+                L = self.left_site_matricization(k)
+                R = self.right_site_matricization(k+1)
 
-            U, B = np.linalg.qr(L)
+                U, B = np.linalg.qr(L)
 
-            W = B @ R
+                W = B @ R
 
-            self.sites[k] = self.tensoricization(U, k)
-            self.sites[k+1] = self.tensoricization(W, k+1)
-        
-        # L = self.left_site_matricization(-1)
-        # V, U = np.linalg.qr(L)
-        # self.sites[-1] = self.tensoricization(V, -1)
+                self.sites[k] = self.tensoricization(U, k)
+                self.sites[k+1] = self.tensoricization(W, k+1)
+            
+            # L = self.left_site_matricization(-1)
+            # V, U = np.linalg.qr(L)
+            # self.sites[-1] = self.tensoricization(V, -1)
 
-        self.orthonormalized = 'left'
+            self.orthonormalized = 'left'
+        else:
+            raise Exception("Cannot orthonormalize an undecomposed MatrixProductOperator")
+        return self
     
     def right_orthonormalization(self, bond_shape=()):
-        for k in range(self.sites_number-1, 0, -1):
-            
-            R = self.right_site_matricization(k)
-            L = self.left_site_matricization(k-1)
-            
-            V, U = np.linalg.qr(R.T)
-            # U, S, V = np.linalg.svd(R, full_matrices=False)
-            W = L @ U.T
-            # W = L @ (U * S)
+        if self.decomposed:
+            for k in range(self.sites_number-1, 0, -1):
+                
+                R = self.right_site_matricization(k)
+                L = self.left_site_matricization(k-1)
+                
+                V, U = np.linalg.qr(R.T)
+                # U, S, V = np.linalg.svd(R, full_matrices=False)
+                W = L @ U.T
+                # W = L @ (U * S)
 
-            self.sites[k] = self.tensoricization(V.T, k)
-            self.sites[k-1] = self.tensoricization(W, k-1)
+                self.sites[k] = self.tensoricization(V.T, k)
+                self.sites[k-1] = self.tensoricization(W, k-1)
 
-        # R = self.right_site_matricization(0)
-        # V, U = np.linalg.qr(R.T)
-        # self.sites[0] = self.tensoricization(V.T, 0)
+            # R = self.right_site_matricization(0)
+            # V, U = np.linalg.qr(R.T)
+            # self.sites[0] = self.tensoricization(V.T, 0)
 
-        self.orthonormalized = 'right'
+            self.orthonormalized = 'right'
+        else:
+            raise Exception("Cannot orthonormalize an undecomposed MatrixProductOperator")
+
+        return self
 
     def left_site_matricization(self, index):
         return self.left_matricization(self.sites[index], index)
