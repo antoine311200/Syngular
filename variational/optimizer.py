@@ -10,7 +10,7 @@ class Optimizer:
 class Lanczos(Optimizer):
     
     @staticmethod
-    def fit(tensor, init_vec = None, iteration=100, ):
+    def fit(tensor, init_vec = None, iteration=100) -> tuple[np.ndarray]:
         n = tensor.shape[0]*tensor.shape[1] if len(tensor.shape) > 2 else tensor.shape[0]
         l = tensor.shape[2]*tensor.shape[3] if len(tensor.shape) > 2 else tensor.shape[1]
         m = min(n, iteration)
@@ -38,7 +38,7 @@ class Lanczos(Optimizer):
 
         T[0,0] = alpha
 
-        for j in range(1, m-1):
+        for j in range(1, m):
             beta = np.sqrt(np.dot(w,w))
 
             vj = w/beta
@@ -58,3 +58,10 @@ class Lanczos(Optimizer):
             T[j,j-1] = beta
         
         return T, V
+
+
+class Davidson:
+    
+    @staticmethod
+    def fit(tensor, init_vec = None, iteration=100) -> tuple[np.ndarray]:
+        pass

@@ -294,15 +294,27 @@ def test_to_tensor():
     print("-------------------------------------------------------")
 
 def test_compare():
-    y = np.ones(2**4).reshape((4,4))
+    y = np.zeros(2**4).reshape((4,4))
     np.fill_diagonal(y, list(range(1,5)))
     y = y.reshape((2,2,2,2))
-    Y = MatrixProductOperator(y, bond_shape=(2,)).decompose().right_orthonormalization()
+
+    # y = np.array([
+    #     [1,0,0,0],
+    #     [0,2,0,0],
+    #     [0,0,3,0],
+    #     [0,0,0,2],
+    # ]).reshape((2,2,2,2))
+    Y = MatrixProductOperator(y, bond_shape=(4,)).decompose().right_orthonormalization()
 
     print(y)
 
     print(np.around(Y.to_tensor(), decimals=2))
 
+    print('-----')
+    for site in Y.sites:
+        print(site)
+        print("")
+    
     print("---------- Compare with to_tensor() ----------")
     start = time.time()
     

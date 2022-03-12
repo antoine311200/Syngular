@@ -18,10 +18,24 @@ class DMRG:
 
         n = operator.sites_number
         input_shape = operator.input_shape
-        bond_shape = operator.bond_shape
+        bond_shape = operator.bond_shape if input_shape[0] >= operator.bond_shape[0] else input_shape[:-1]
+
+        print(input_shape, bond_shape)
+
+        tensor = np.random.random(size=input_shape)
+        tensor /= np.linalg.norm(tensor)
+
+        print("Shape", tensor.shape)
+        print(np.linalg.norm(tensor))
         
-        state = MatrixProductState.random(input_shape=input_shape, bond_shape=bond_shape)
+        state = MatrixProductState(tensor, bond_shape=bond_shape).decompose() #.random(input_shape=input_shape, bond_shape=bond_shape)#
+        state.normalize()#MatrixProductState.random(input_shape=input_shape, bond_shape=bond_shape)
         state.right_orthonormalization()
+        print("Random state norm", np.linalg.norm(state.to_tensor()))
+
+        # state = MatrixProductState.random(input_shape=input_shape, bond_shape=bond_shape)
+        # state.right_orthonormalization()
+
 
         print('[DMRG] Initialization')
 
@@ -153,8 +167,10 @@ class DMRG:
 
             _, nsite = optimizer.fit(site, init_vec=init_vec)
             init_vec = nsite[0]
+            print(nsite)
             nsite = np.reshape(nsite, newshape=site.shape)
             state.sites[k], state.sites[k+1] = DMRG.__restore(state=state, site=nsite, index=k)
+
 
             # print("Shape end step", [site.shape for site in state.sites])
 

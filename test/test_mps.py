@@ -97,10 +97,73 @@ def test_random():
     print(Z)
     print(Z.to_tensor())
 
+def test_dot():
+    x = np.arange(4**3).reshape((4,4,4))
+    X = MatrixProductState(x, bond_shape=(4,4)).decompose()
+
+    print("---------- MatrixProductOperator.dot() ----------")
+    start = time.time()
+    print('Norm', np.linalg.norm(x)**2)
+    print('MPS Norm', X.dot())
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+
+def test_normalize():
+    x = np.arange(4**3).reshape((4,4,4))
+    X = MatrixProductState(x, bond_shape=(4,4)).decompose()
+
+    print("---------- MatrixProductOperator.norm() ----------")
+    start = time.time()
+    print('Norm (before normalization)', X.dot())
+    X.normalize()
+    print('Norm (after normalization)', X.dot())
+    
+    print('Norm (after tensorization)', np.linalg.norm(X.to_tensor()))
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+
+def test_left_canonical():
+    x = np.arange(4**3).reshape((4,4,4))
+    X = MatrixProductState(x, bond_shape=(2,2))
+
+    print("---------- MatrixProductOperator.decompose(mode='left') ----------")
+    start = time.time()
+
+    X.decompose(mode="left")
+    
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+    print(X.to_tensor())
+
+def test_right_canonical():
+    x = np.arange(4**3).reshape((4,4,4))
+    X = MatrixProductState(x, bond_shape=(2,2))
+
+    print("---------- MatrixProductOperator.decompose(mode='right') ----------")
+    start = time.time()
+
+    X.decompose(mode="right")
+    
+    end = time.time()
+    print(f"> Execution time : {end-start:.8f}sec")
+    print("-------------------------------------------------------")
+
+    print(X.to_tensor())
 # test_add()
 # test_compress()
 # test_random()
 # test_zeros()
 
 # test_augment()
-test_apply()
+# test_apply()
+# test_dot()
+
+# test_normalize()
+test_left_canonical()
+test_right_canonical()

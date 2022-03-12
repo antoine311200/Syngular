@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import gc
 import itertools
 from typing import Tuple, List, Union
@@ -6,6 +8,8 @@ import numpy as np
 from scipy import linalg
 
 from opt_einsum import contract
+
+# from syngular.tensor.matrix_product_operator import MatrixProductOperator
 
 class MatrixProductState:
 
@@ -40,6 +44,8 @@ class MatrixProductState:
 
             self.sites_number = len(self.bond_shape)+1
             self.sites = [None] * self.sites_number
+
+            self.norm = None
 
             if self.order != self.sites_number:
                 raise Exception("dimensions of bond indices do not match order - 1")
@@ -228,14 +234,26 @@ class MatrixProductState:
             sites.append(np.zeros(shape=shape[idx]))
         return MatrixProductState.from_sites(sites)
     
-    """norm method of MatrixProductState
+    """dot method of MatrixProductState
     Compute the norm of the MatrixProductState
 
     @rtype: float
     @returns: the MatrixProductState norm
     """
-    def norm(self):
-        return self | self
+    def dot(self):
+        return np.sqrt(self | self)
+
+    """normalize method of MatrixProductState
+    Normalize the MatrixProductState
+
+    @rtype: MatrixProductState
+    @returns: self
+    """
+    def normalize(self):
+        norm = np.linalg.norm(self.sites[-1].reshape((self.sites[-1].shape[0], -1)))
+        self.sites[-1] /= norm
+
+        return self
     
     """to_tensor method of MatrixProductState
     Retrieve the based tensor of the MatrixProductState
@@ -255,9 +273,26 @@ class MatrixProductState:
         return tensor
     
     
+    """copy method of MatrixProductState
+    Copy the MatrixProductState
+
+    @rtype: MatrixProductState
+    @returns: a copy of the MPS
+    """
     def copy(self):
         return MatrixProductState.from_sites(self.sites)
 
+    
+    """decompose method of MatrixProductState
+    Decompose (left/right normalization)
+
+
+    @type mode: "left" | "right"
+    @param mode: mode of orthonormalization (left/rigth)
+
+    @rtype: MatrixProductState
+    @returns: self
+    """
     def decompose(self, mode="left"):
         if not self.decomposed:
             if mode == "left":
@@ -269,9 +304,8 @@ class MatrixProductState:
                 for k in range(self.sites_number-1):
                     
                     L = self.left_matricization(T, index=k)
-                    
                     Q, R = np.linalg.qr(L, mode="complete")
-                    # print(Q.shape, R.shape)
+
                     rank = self.shape[k][2]
                     Q = Q[:,:rank]
                     R = R[:rank, :]
@@ -288,15 +322,43 @@ class MatrixProductState:
                 gc.collect()
 
             elif mode == "right":
-                current_matrix = self.tensor.T
-                current_shape = self.shape[0][0]
-                current_rank = 1
 
-                self.decompose(mode="left")
+                n = self.sites_number-1
+                T = self.tensor
+
+                for k in range(self.sites_number-1,0,-1):
+
+                    L = self.right_matricization(T, index=k).T
+                    Q, R = np.linalg.qr(L, mode="complete")
+                    
+                    rank = self.shape[k][0]
+                    Q = Q[:,:rank].T
+                    R = R[:rank, :].T
+
+                    self.sites[k] = self.tensoricization(Q, k)
+                    T = R
+
+                    self.parameters_number += np.prod(self.sites[k].shape)
+
+                self.sites[0] = self.tensoricization(T, 0)
+                self.parameters_number += np.prod(self.sites[0].shape)
+
+                del self.tensor
+                gc.collect()
 
             self.decomposed = True
         return self
 
+    """compress method of MatrixProductState
+    Compression of the MatrixProductStates QR algorithm
+
+
+    @type dim: int
+    @param dim: dimension of the compression < current bond dimension
+
+    @rtype: MatrixProductState
+    @returns: compressed MatrixProductState
+    """
     def compress(self, dim: int, mode="left", strict=False):
         n = self.sites_number-1
         parameters_number = 0
@@ -405,7 +467,24 @@ class MatrixProductState:
 
             return that
 
-    def apply(self, operator, index, strict=True):
+    """apply method of MatrixProductState
+    Apply an operator (for now MatrixProductOperator) to the MatrixProductState
+
+
+    @type operator: MatrixProductOperator
+    @param operator: the MPO operator to apply
+    
+    @type index: int
+    @param index: the MPO operator to apply
+
+    @type mode: "compress" | "normal" | "density"
+    @param mode: Mode of application of the operator by compressing the bond dimensions or not 
+                 and using an optimized algorithm
+
+    @rtype: MatrixProductState
+    @returns: the transformation of the MatrixProductState by the MatrixProductOperator
+    """
+    def apply(self, operator: MatrixProductOperator, index, strict=True, mode="compress"):
         if strict: that = self.copy()
         # print("> Apply")
         m = len(operator.shape) // 2
@@ -454,6 +533,16 @@ class MatrixProductState:
         
         return that
 
+    """retrieve method of MatrixProductState
+    Fixe physical indices to retrieve the real/complex value of the tensor  
+
+
+    @type indices: List[int]
+    @param indices: physicial indices list to be fixed
+
+    @rtype: float
+    @returns: the selected coefficient of the MatrixProductState 
+    """
     def retrieve(self, indices):
         einsum_structure = []
         for idx in range(self.sites_number):

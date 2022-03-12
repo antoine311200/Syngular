@@ -4,6 +4,8 @@ from __future__ import annotations
 import gc
 import itertools
 from typing import Tuple, List, Union
+from cv2 import eigen
+from django.forms import PasswordInput
 from numpy.core.numeric import outer
 
 from opt_einsum import contract
@@ -17,6 +19,8 @@ class MatrixProductOperator:
 
     COMPRESS = True
     DECOMPOSE = False
+
+    MATMUL_MODE = "standard"
 
     def __init__(self, tensor=None, bond_shape: Union[Union[Tuple, List], np.ndarray]=(), verbose=0) -> None:
         
@@ -171,32 +175,118 @@ class MatrixProductOperator:
     def __matmul__(self, mp: Union[MatrixProductOperator, MatrixProductState]):
         min_bond = min(min(self.bond_shape), min(mp.bond_shape))
         max_bond = max(max(self.bond_shape), max(mp.bond_shape))
-        # print("min", min_bond)f
+        # print("min", min_bond)
         sites = []
 
         if isinstance(mp, MatrixProductState):
-            for idx in range(self.sites_number):
-                site = contract(mp.sites[idx], [1,2,3], self.sites[idx], [4,2,6,5], [1,4,6,3,5])
+            if MatrixProductOperator.MATMUL_MODE == "standard":
+                for idx in range(self.sites_number):
+                    site = contract(mp.sites[idx], [1,2,3], self.sites[idx], [4,2,6,5], [1,4,6,3,5])
 
-                site = site.reshape((
-                    self.shape[idx][0]*mp.shape[idx][0],
-                    self.shape[idx][2],
-                    self.shape[idx][3]*mp.shape[idx][2]
-                ))
-                sites.append(site)
-            return MatrixProductState.from_sites(sites) >> min_bond
+                    site = site.reshape((
+                        self.shape[idx][0]*mp.shape[idx][0],
+                        self.shape[idx][2],
+                        self.shape[idx][3]*mp.shape[idx][2]
+                    ))
+                    sites.append(site)
+                return MatrixProductState.from_sites(sites) >> min_bond
+            elif MatrixProductOperator.MATMUL_MODE == "opti":
+                blocks = [None for _ in range(self.sites_number)]
+                basis = [None for _ in range(self.sites_number)]
+                computes = [None for _ in range(self.sites_number)]
+
+                for idx in range(self.sites_number-1):
+                    state_site = mp.sites[idx]
+                    op_site = self.sites[idx]
+
+                    struct = [
+                        state_site, [1, 2, 3],
+                        op_site, [4, 2, 5, 6],
+                        op_site, [7, 8, 9, 10],
+                        state_site, [11, 9, 12]
+                    ]
+                    if idx != 0: struct += [blocks[idx-1], [1, 4, 7, 11]]
+                    struct += [[3, 6, 10, 12]]
+
+                    block = contract(*struct)
+                    blocks[idx] = block
+
+                state_site = mp.sites[-1]
+                op_site = self.sites[-1]
+
+                reduced_density_matrix = contract(
+                    blocks[-1], [1,4,7,11],
+                    
+                    state_site, [1, 2, 3],
+                    op_site, [4, 2, 5, 6],
+                    op_site, [7, 8, 9, 10],
+                    state_site, [11, 9, 12],
+
+                    [5, 8]
+                )
+
+                eigenvalues, eigenvectors = np.linalg.eigh(reduced_density_matrix)
+                eigenvalues = eigenvalues[:min_bond]
+                eigenvectors = eigenvectors[:, :min_bond]
+                
+                basis[-1] = eigenvectors
+                computes[-1] = contract(
+                    state_site, [1, 2, 3],
+                    op_site, [4, 2, 5, 6],
+                    np.conjugate(basis[-1]), [5, 7],
+                    [1, 4, 7]
+                )
+
+                penult_state_site = mp.sites[-2]
+                penult_op_site = self.sites[-2]
+
+                penult_reduced_density_matrix = contract(
+                    blocks[-2], [1,4,7,11],
+                    
+                    penult_state_site, [1, 2, 3],
+                    penult_op_site, [4, 2, 5, 6],
+                    penult_op_site, [7, 8, 9, 10],
+                    penult_state_site, [11, 9, 12],
+
+                    # state_site, [3, 13, 14],
+                    # op_site, [6, 13, 15, 16],
+                    # op_site, [10, 17, 18, 19],
+                    # state_site, [12, 18, 20],
+
+                    computes[-1], [3, 6, 15],
+                    np.conjugate(computes[-1]), [12, 10, 17],
+
+                    [5, 17, 10, 8]
+                )
+
+            elif MatrixProductOperator.MATMUL_MODE == "variational":
+                
+                left_blocks = [None for _ in range(self.sites_number)]
+                right_blocks = [None for _ in range(self.sites_number)]
+
+                new_state = MatrixProductState.copy(mp)
+
+                for idx in range(self.sites_number-1):
+                    state_site = mp.sites[idx]
+                    op_site = self.sites[idx]
+
+                    # ...
+                
+            elif MatrixProductOperator.MATMUL_MODE == "fit-up":
+                pass
+
         elif isinstance(mp, MatrixProductOperator):
-            for idx in range(self.sites_number):
-                site = contract(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,3,6,7], [1,5,2,6,4,7])
+                for idx in range(self.sites_number):
+                    site = contract(self.sites[idx], [1,2,3,4], mp.sites[idx], [5,3,6,7], [1,5,2,6,4,7])
 
-                site = site.reshape((
-                    self.shape[idx][0]*mp.shape[idx][0],
-                    self.shape[idx][1],
-                    self.shape[idx][2],
-                    self.shape[idx][3]*mp.shape[idx][3]
-                ))
-                sites.append(site)
-            return MatrixProductOperator.from_sites(sites) >> min_bond
+                    site = site.reshape((
+                        self.shape[idx][0]*mp.shape[idx][0],
+                        self.shape[idx][1],
+                        self.shape[idx][2],
+                        self.shape[idx][3]*mp.shape[idx][3]
+                    ))
+                    sites.append(site)
+                return MatrixProductOperator.from_sites(sites) >> min_bond
 
     def __mod__(self, mode):
         if mode == 'L' or mode == 'left' or mode == 'l' or mode == 'left-canonical':
@@ -348,6 +438,8 @@ class MatrixProductOperator:
                     rank_right = self.shape[k][3]
                     Q = Q[:,:rank_right]
                     R = R[:rank_right, :]
+
+                    print(Q.shape, R.shape)
 
                     self.sites[k] = self.tensoricization(Q, k)
                     T = R
@@ -561,6 +653,12 @@ class MatrixProductOperator:
     @staticmethod
     def split():
         pass
+
+    def transpose(self):
+        sites = []
+        for idx in range(self.sites_number):
+            sites.append(self.sites[idx].transpose(self.sites[idx], (0,2,1,3)))
+        return MatrixProductOperator.from_sites(sites)
 
     def retrieve(self, input_indices, output_indices):
         einsum_structure = []
