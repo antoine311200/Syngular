@@ -1,4 +1,10 @@
-<h1 align="center">Syngular</h1>
+<!-- <h1 align="center">Syngular</h1> -->
+
+<h1 align="center"> </h1>
+<div align="center">
+  <img src="resources/Syngular Logo.png">
+</div>
+
 <h4 align="center">Tensor Network in Python</h4>
 
 <h1 align="center"> </h1>
