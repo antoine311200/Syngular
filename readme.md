@@ -2,7 +2,7 @@
 
 <h1 align="center"> </h1>
 <div align="center">
-  <img src="resources/Syngular@2x.png">
+  <img src="resources/Syngular.png">
 </div>
 
 <h4 align="center">Tensor Network in Python</h4>
